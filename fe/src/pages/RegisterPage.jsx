@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { registerApi } from "../services/auth.api";
@@ -22,10 +21,10 @@ export default function RegisterPage() {
       setLoading(true);
       const data = await registerApi({ name, email, password });
 
-      // ✅ không lưu token
+      // không lưu token
       setOkMsg(data?.message || "Register thành công. Hãy đăng nhập.");
 
-      // ✅ chuyển về login sau khi đăng ký
+      // chuyển về login sau khi đăng ký
       navigate("/login", { replace: true });
     } catch (e) {
       setErr(e?.response?.data?.message || "Register failed");
@@ -35,65 +34,96 @@ export default function RegisterPage() {
   };
 
   return (
-    <div className="min-h-[calc(100vh-140px)] flex items-center justify-center px-4 py-10">
-      <div className="max-w-md rounded-2xl bg-white/5 border border-white/10 p-6">
-        <h1 className="text-2xl font-bold">Register</h1>
+    <div className="min-h-[calc(100vh-140px)] flex items-center justify-center px-4 py-10 bg-gray-50">
+      <div className="w-full max-w-md rounded-2xl bg-white border border-gray-200 p-6 shadow-sm">
+        <h1 className="text-2xl font-bold text-gray-900">Register</h1>
+        <p className="mt-1 text-sm text-gray-600">
+          Tạo tài khoản mới
+        </p>
 
         <form onSubmit={onSubmit} className="mt-6 space-y-4">
-          {/* inputs... */}
-<div>
-            <label className="text-sm text-slate-300">Name (optional)</label>
+          <div>
+            <label className="text-sm font-medium text-gray-700">
+              Name (optional)
+            </label>
             <input
-              className="mt-2 w-full rounded-xl bg-black/30 border border-white/10 px-3 py-2 outline-none focus:border-white/20"
+              className="
+                mt-2 w-full rounded-xl bg-white
+                border border-gray-300 px-3 py-2
+                text-gray-900 placeholder:text-gray-400
+                outline-none
+                focus:border-gray-900 focus:ring-2 focus:ring-gray-200
+              "
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="Mitsu"
+              autoComplete="name"
             />
           </div>
 
           <div>
-            <label className="text-sm text-slate-300">Email</label>
+            <label className="text-sm font-medium text-gray-700">Email</label>
             <input
-              className="mt-2 w-full rounded-xl bg-black/30 border border-white/10 px-3 py-2 outline-none focus:border-white/20"
+              className="
+                mt-2 w-full rounded-xl bg-white
+                border border-gray-300 px-3 py-2
+                text-gray-900 placeholder:text-gray-400
+                outline-none
+                focus:border-gray-900 focus:ring-2 focus:ring-gray-200
+              "
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="mitsu@gmail.com"
+              autoComplete="email"
             />
           </div>
 
           <div>
-            <label className="text-sm text-slate-300">Password</label>
+            <label className="text-sm font-medium text-gray-700">Password</label>
             <input
               type="password"
-              className="mt-2 w-full rounded-xl bg-black/30 border border-white/10 px-3 py-2 outline-none focus:border-white/20"
+              className="
+                mt-2 w-full rounded-xl bg-white
+                border border-gray-300 px-3 py-2
+                text-gray-900 placeholder:text-gray-400
+                outline-none
+                focus:border-gray-900 focus:ring-2 focus:ring-gray-200
+              "
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="tối thiểu 6 ký tự"
+              autoComplete="new-password"
             />
           </div>
+
           {err ? (
-            <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-200">
+            <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">
               {err}
             </div>
           ) : null}
 
           {okMsg ? (
-            <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-3 text-sm text-emerald-200">
+            <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-700">
               {okMsg}
             </div>
           ) : null}
 
           <button
             disabled={loading}
-            className="w-full rounded-xl bg-white px-4 py-2 font-semibold text-slate-900 hover:opacity-90 disabled:opacity-60"
+            className="
+              w-full rounded-xl bg-gray-900 px-4 py-2
+              font-semibold text-white
+              hover:opacity-90 disabled:opacity-60
+              transition
+            "
           >
             {loading ? "Loading..." : "Create account"}
           </button>
         </form>
 
-        <p className="mt-4 text-sm text-slate-300">
+        <p className="mt-4 text-sm text-gray-600">
           Đã có tài khoản?{" "}
-          <Link to="/login" className="text-white underline">
+          <Link to="/login" className="text-gray-900 underline font-medium">
             Sign in
           </Link>
         </p>

@@ -6,7 +6,7 @@ const cors = require("cors");
 
 const connectDB = require("./config/db");
 const authRoute = require("./route/authroute");
-
+const userRoute = require("./route/userRoute");
 const app = express();
 
 app.use(morgan("dev"));
@@ -22,7 +22,7 @@ app.use(
 app.use(express.json());
 
 app.use("/api/v1/auth", authRoute);
-
+app.use("/api/v1/users", userRoute);
 app.get("/", (req, res) => res.json({ ok: true, message: "API running" }));
 
 const PORT = process.env.PORT || 5000;
