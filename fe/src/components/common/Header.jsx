@@ -10,7 +10,7 @@ export default function Header() {
           className="text-lg font-bold cursor-pointer"
           onClick={() => navigate("/")}
         >
-          CMS
+          CMSD 
         </div>
 
         <button
