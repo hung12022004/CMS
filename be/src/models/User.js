@@ -10,6 +10,10 @@ const userSchema = new mongoose.Schema(
       maxlength: 30,
       default: "",
     },
+isVerified: {
+  type: Boolean,
+  default: false,
+},
 
     email: {
       type: String,

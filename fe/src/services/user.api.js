@@ -26,3 +26,4 @@ export const changePasswordApi = async (payload) => {
   const res = await api.patch("/users/me/password", payload);
   return res.data;
 };
+

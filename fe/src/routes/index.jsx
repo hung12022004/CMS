@@ -6,6 +6,9 @@ import LoginPage from "../pages/LoginPage";
 import RegisterPage from "../pages/RegisterPage";
 import ProfilePage from "../pages/ProfilePage";
 import ChangePasswordPage from "../pages/ChangePasswordPage";
+import ResetPassword from "../pages/ResetPassword";
+import VerifyOtpPage from "../pages/VerifyOtpPage";
+import ForgotPasswordPage from "../pages/ForgetPasswordPage";
 
 
 export default function AppRoutes() {
@@ -17,6 +20,9 @@ export default function AppRoutes() {
         <Route path="/register" element={<RegisterPage />} />
         <Route path="/profile" element={<ProfilePage />} />
         <Route path="/change-password" element={<ChangePasswordPage />} />
+        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
+        <Route path="/verify-otp" element={<VerifyOtpPage />} />
       </Route>
 
       <Route path="*" element={<Navigate to="/" replace />} />

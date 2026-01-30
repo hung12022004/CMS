@@ -5,7 +5,7 @@ import { useAuth } from "../hooks/useAuth";
 
 export default function LoginPage() {
   const navigate = useNavigate();
-  const { login } = useAuth(); // 🔥 LẤY login từ context
+  const { login } = useAuth();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -21,13 +21,8 @@ export default function LoginPage() {
 
       const data = await loginApi({ email, password });
 
-      // 1️⃣ lưu token
       localStorage.setItem("accessToken", data.accessToken);
-
-      // 2️⃣ SET USER NGAY → Header update liền
       login(data.user);
-
-      // 3️⃣ redirect
       navigate("/", { replace: true });
     } catch (e) {
       setErr(e?.response?.data?.message || "Login failed");
@@ -48,13 +43,8 @@ export default function LoginPage() {
           <div>
             <label className="text-sm font-medium text-gray-700">Email</label>
             <input
-              className="
-                mt-2 w-full rounded-xl bg-white
-                border border-gray-300 px-3 py-2
-                text-gray-900 placeholder:text-gray-400
-                outline-none
-                focus:border-gray-900 focus:ring-2 focus:ring-gray-200
-              "
+              className="mt-2 w-full rounded-xl border border-gray-300 px-3 py-2
+                         focus:border-gray-900 focus:ring-2 focus:ring-gray-200  text-gray-900 placeholder:text-gray-400"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="mitsu@gmail.com"
@@ -66,13 +56,8 @@ export default function LoginPage() {
             <label className="text-sm font-medium text-gray-700">Password</label>
             <input
               type="password"
-              className="
-                mt-2 w-full rounded-xl bg-white
-                border border-gray-300 px-3 py-2
-                text-gray-900 placeholder:text-gray-400
-                outline-none
-                focus:border-gray-900 focus:ring-2 focus:ring-gray-200
-              "
+              className="mt-2 w-full rounded-xl border border-gray-300 px-3 py-2
+                         focus:border-gray-900 focus:ring-2 focus:ring-gray-200  text-gray-900 placeholder:text-gray-400"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="••••••"
@@ -80,20 +65,26 @@ export default function LoginPage() {
             />
           </div>
 
-          {err ? (
+          {/* 🔑 Quên mật khẩu */}
+          <div className="text-right">
+            <Link
+              to="/forgot-password"
+              className="text-sm font-medium text-gray-900 underline"
+            >
+              Quên mật khẩu?
+            </Link>
+          </div>
+
+          {err && (
             <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">
               {err}
             </div>
-          ) : null}
+          )}
 
           <button
             disabled={loading}
-            className="
-              w-full rounded-xl bg-gray-900 px-4 py-2
-              font-semibold text-white
-              hover:opacity-90 disabled:opacity-60
-              transition
-            "
+            className="w-full rounded-xl bg-gray-900 px-4 py-2
+                       font-semibold text-white hover:opacity-90 disabled:opacity-60"
           >
             {loading ? "Loading..." : "Sign in"}
           </button>

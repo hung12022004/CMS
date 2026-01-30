@@ -57,7 +57,7 @@ export default function Header() {
             onClick={() => navigate("/login")}
             className="px-4 py-2 rounded-lg border border-gray-300 text-gray-900 hover:bg-gray-100"
           >
-            Sign in
+            Đăng nhập
           </button>
         </div>
       </header>
@@ -142,7 +142,7 @@ export default function Header() {
               }}
               className="w-full text-left px-4 py-3 text-sm text-gray-700 hover:bg-gray-100"
             >
-              My profile
+              Hồ sơ của tôi
             </button>
 
             <button
@@ -152,7 +152,7 @@ export default function Header() {
               }}
               className="w-full text-left px-4 py-3 text-sm text-gray-700 hover:bg-gray-100"
             >
-              Change password
+              Đổi mật khẩu
             </button>
 
             <div className="border-t border-gray-200" />
@@ -161,7 +161,7 @@ export default function Header() {
               onClick={handleLogout}
               className="w-full text-left px-4 py-3 text-sm text-red-600 hover:bg-red-50 rounded-b-2xl "
             >
-              Logout
+              Đăng xuất
             </button>
           </div>
         </div>
