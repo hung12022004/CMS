@@ -1,11 +1,15 @@
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
+const { OAuth2Client } = require("google-auth-library");
 
 const User = require("../models/User");
 const Otp = require("../models/Otp");
 
 const { createOtp } = require("../utils/otp-provider");
 const { sendOtpEmail } = require("../utils/mailer");
+
+// Google OAuth client
+const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
 /* =======================
    JWT
@@ -38,19 +42,32 @@ exports.register = async (req, res) => {
     const normalizedEmail = String(email).toLowerCase().trim();
 
     const exists = await User.findOne({ email: normalizedEmail });
-    if (exists) {
+
+    // Nếu email đã tồn tại VÀ đã được xác thực -> không cho đăng ký lại
+    if (exists && exists.isVerified) {
       return res.status(409).json({ message: "Email đã tồn tại" });
     }
 
     const salt = await bcrypt.genSalt(10);
     const passwordHash = await bcrypt.hash(password, salt);
 
-    await User.create({
-      name: name || "",
-      email: normalizedEmail,
-      passwordHash,
-      isVerified: false,
-    });
+    if (exists && !exists.isVerified) {
+      // Email tồn tại nhưng chưa xác thực -> cập nhật thông tin và gửi OTP mới
+      await User.updateOne(
+        { email: normalizedEmail },
+        { name: name || exists.name, passwordHash }
+      );
+      // Xóa OTP cũ (nếu có)
+      await Otp.deleteMany({ email: normalizedEmail, type: "REGISTER" });
+    } else {
+      // Tạo user mới
+      await User.create({
+        name: name || "",
+        email: normalizedEmail,
+        passwordHash,
+        isVerified: false,
+      });
+    }
 
     // ✅ tạo OTP
     const otp = await createOtp({
@@ -59,9 +76,9 @@ exports.register = async (req, res) => {
     });
 
     // ✅ gửi email HTML
-sendOtpEmail({ to: email, otp, type: "REGISTER" })
-  .catch(err => console.error("Send mail error:", err));
-console.log(email, otp);
+    sendOtpEmail({ to: email, otp, type: "REGISTER" })
+      .catch(err => console.error("Send mail error:", err));
+    console.log(email, otp);
     return res.status(201).json({
       message: "Đăng ký thành công. Vui lòng nhập OTP gửi về email để xác thực.",
       email: normalizedEmail,
@@ -79,10 +96,10 @@ console.log(email, otp);
 ======================= */
 exports.verifyRegisterOtp = async (req, res) => {
   try {
-   
-    
+
+
     const { email, otp } = req.body;
-     console.log(email, otp);
+    console.log(email, otp);
     if (!email || !otp) {
       return res.status(400).json({ message: "email và otp là bắt buộc" });
     }
@@ -221,8 +238,8 @@ exports.forgotPassword = async (req, res) => {
       type: "RESET_PASSWORD",
     });
 
-sendOtpEmail({ to: email, otp, type: "RESET_PASSWORD" })
-  .catch(err => console.error("Send mail error:", err));
+    sendOtpEmail({ to: email, otp, type: "RESET_PASSWORD" })
+      .catch(err => console.error("Send mail error:", err));
     return res.status(200).json({
       message: "OTP đặt lại mật khẩu đã được gửi về email",
     });
@@ -291,5 +308,77 @@ exports.resetPassword = async (req, res) => {
   } catch (err) {
     console.error("reset-password error:", err);
     return res.status(500).json({ message: "Server error" });
+  }
+};
+
+/* =======================
+   GOOGLE LOGIN
+   POST /api/v1/auth/google
+   body: { credential }
+======================= */
+exports.googleLogin = async (req, res) => {
+  try {
+    const { credential } = req.body;
+
+    if (!credential) {
+      return res.status(400).json({ message: "Google credential là bắt buộc" });
+    }
+
+    // Verify Google token
+    const ticket = await googleClient.verifyIdToken({
+      idToken: credential,
+      audience: process.env.GOOGLE_CLIENT_ID,
+    });
+
+    const payload = ticket.getPayload();
+    const { sub: googleId, email, name, picture } = payload;
+
+    if (!email) {
+      return res.status(400).json({ message: "Không lấy được email từ Google" });
+    }
+
+    const normalizedEmail = String(email).toLowerCase().trim();
+
+    // Tìm user theo googleId hoặc email
+    let user = await User.findOne({
+      $or: [{ googleId }, { email: normalizedEmail }],
+    });
+
+    if (user) {
+      // User đã tồn tại
+      if (!user.googleId) {
+        // User đăng ký bằng email thường, link Google account
+        user.googleId = googleId;
+        user.authProvider = "google";
+        user.isVerified = true;
+        if (picture && !user.avatarUrl) {
+          user.avatarUrl = picture;
+        }
+        await user.save();
+      }
+    } else {
+      // Tạo user mới từ Google
+      user = await User.create({
+        email: normalizedEmail,
+        name: name || "",
+        googleId,
+        authProvider: "google",
+        isVerified: true,
+        avatarUrl: picture || "",
+      });
+    }
+
+    const accessToken = signAccessToken(user);
+
+    return res.status(200).json({
+      message: "Đăng nhập Google thành công",
+      user: user.toJSON(),
+      accessToken,
+      tokenType: "Bearer",
+      expiresIn: 30 * 60,
+    });
+  } catch (err) {
+    console.error("google login error:", err);
+    return res.status(500).json({ message: "Google login failed" });
   }
 };

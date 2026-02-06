@@ -9,6 +9,17 @@ export default function Header() {
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
 
+  // Helper function để xử lý avatar URL
+  const getAvatarSrc = () => {
+    if (!user?.avatarUrl) {
+      return "https://i.pravatar.cc/100";
+    }
+    if (user.avatarUrl.startsWith("/uploads")) {
+      return `http://localhost:5000${user.avatarUrl}`;
+    }
+    return user.avatarUrl;
+  };
+
   useEffect(() => {
     const onClick = (e) => {
       if (ref.current && !ref.current.contains(e.target)) {
@@ -85,14 +96,13 @@ export default function Header() {
             className="flex items-center gap-2 px-2 py-1 rounded-full hover:bg-gray-100 transition"
           >
             <img
-              src={user.avatarUrl || "https://i.pravatar.cc/100"}
+              src={getAvatarSrc()}
               className="w-10 h-10 rounded-full object-cover border"
               alt="avatar"
             />
             <svg
-              className={`w-4 h-4 text-gray-600 transition-transform ${
-                open ? "rotate-180" : ""
-              }`}
+              className={`w-4 h-4 text-gray-600 transition-transform ${open ? "rotate-180" : ""
+                }`}
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -113,17 +123,16 @@ export default function Header() {
               bg-white border border-gray-200
               rounded-2xl shadow-xl
               transform transition-all duration-200 origin-top-right
-              ${
-                open
-                  ? "opacity-100 scale-100"
-                  : "opacity-0 scale-95 pointer-events-none"
+              ${open
+                ? "opacity-100 scale-100"
+                : "opacity-0 scale-95 pointer-events-none"
               }
             `}
           >
             {/* User info */}
             <div className="flex items-center gap-3 px-4 py-4 border-b border-gray-200">
               <img
-                src={user.avatarUrl || "https://i.pravatar.cc/100"}
+                src={getAvatarSrc()}
                 className="w-10 h-10 rounded-full object-cover"
                 alt="avatar"
               />

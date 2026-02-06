@@ -27,3 +27,18 @@ export const changePasswordApi = async (payload) => {
   return res.data;
 };
 
+/**
+ * POST /api/v1/users/me/avatar
+ * file: avatar (FormData)
+ */
+export const uploadAvatarApi = async (file) => {
+  const formData = new FormData();
+  formData.append("avatar", file);
+
+  const res = await api.post("/users/me/avatar", formData, {
+    headers: {
+      "Content-Type": "multipart/form-data",
+    },
+  });
+  return res.data;
+};

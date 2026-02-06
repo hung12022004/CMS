@@ -3,6 +3,7 @@ require("dotenv").config();
 const express = require("express");
 const morgan = require("morgan");
 const cors = require("cors");
+const path = require("path");
 
 const connectDB = require("./config/db");
 const authRoute = require("./route/authroute");
@@ -20,6 +21,9 @@ app.use(
 );
 
 app.use(express.json());
+
+// ✅ Serve static files (uploads)
+app.use("/uploads", express.static(path.join(__dirname, "../uploads")));
 
 app.use("/api/v1/auth", authRoute);
 app.use("/api/v1/users", userRoute);
