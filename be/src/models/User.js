@@ -10,10 +10,10 @@ const userSchema = new mongoose.Schema(
       maxlength: 30,
       default: "",
     },
-isVerified: {
-  type: Boolean,
-  default: false,
-},
+    isVerified: {
+      type: Boolean,
+      default: false,
+    },
 
     email: {
       type: String,
@@ -30,11 +30,19 @@ isVerified: {
       match: [/^\+?[0-9]{9,15}$/, "Invalid phone number"],
     },
 
-    passwordHash: { type: String, required: true },
+    passwordHash: { type: String, required: false, default: null },
+
+    // Google OAuth fields
+    googleId: { type: String, default: null },
+    authProvider: {
+      type: String,
+      enum: ["local", "google"],
+      default: "local"
+    },
 
     role: {
       type: String,
-      enum: ["admin", "doctor", "patient"],
+      enum: ["admin", "doctor", "nurse", "patient"],
       default: "patient",
     },
 
@@ -48,6 +56,11 @@ isVerified: {
       type: String,
       enum: ["vi", "en", "ja", "ko", "zh"],
       default: "vi",
+    },
+
+    isBanned: {
+      type: Boolean,
+      default: false,
     },
 
     avatarUrl: {

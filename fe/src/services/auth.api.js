@@ -47,3 +47,13 @@ export const verifyOtpApi = async ({ email, otp }) => {
   const res = await api.post("/auth/verify-register-otp", { email, otp });
   return res.data;
 };
+
+/**
+ * Google Login
+ * POST /api/v1/auth/google
+ * body: { credential }
+ */
+export const googleLoginApi = async (credential) => {
+  const res = await api.post("/auth/google", { credential });
+  return res.data;
+};

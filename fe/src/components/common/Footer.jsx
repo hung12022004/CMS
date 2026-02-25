@@ -1,7 +1,7 @@
 export default function Footer() {
   return (
     <footer className="bg-gray-900 text-gray-400">
-      <div className="mx-auto max-w-6xl px-6 py-14 grid grid-cols-1 md:grid-cols-4 gap-10">
+      <div className="mx-auto max-w-6xl px-6 py-14 grid grid-cols-1 md:grid-cols-2 gap-10">
         {/* Brand */}
         <div>
           <h2 className="text-5xl font-extrabold text-white tracking-tight">
@@ -11,64 +11,6 @@ export default function Footer() {
             Clinic Management System – nền tảng quản lý phòng khám hiện đại,
             tối ưu trải nghiệm cho bác sĩ và bệnh nhân.
           </p>
-        </div>
-
-        {/* About */}
-        <div>
-          <h3 className="text-sm font-semibold text-white uppercase tracking-wide">
-            About
-          </h3>
-          <ul className="mt-4 space-y-2 text-sm">
-            <li>
-              <a href="#" className="hover:text-white transition">
-                Giới thiệu
-              </a>
-            </li>
-            <li>
-              <a href="#" className="hover:text-white transition">
-                Đội ngũ bác sĩ
-              </a>
-            </li>
-            <li>
-              <a href="#" className="hover:text-white transition">
-                Cơ sở vật chất
-              </a>
-            </li>
-            <li>
-              <a href="#" className="hover:text-white transition">
-                Tuyển dụng
-              </a>
-            </li>
-          </ul>
-        </div>
-
-        {/* Services */}
-        <div>
-          <h3 className="text-sm font-semibold text-white uppercase tracking-wide">
-            Services
-          </h3>
-          <ul className="mt-4 space-y-2 text-sm">
-            <li>
-              <a href="#" className="hover:text-white transition">
-                Đặt lịch khám
-              </a>
-            </li>
-            <li>
-              <a href="#" className="hover:text-white transition">
-                Hồ sơ bệnh án
-              </a>
-            </li>
-            <li>
-              <a href="#" className="hover:text-white transition">
-                Thanh toán
-              </a>
-            </li>
-            <li>
-              <a href="#" className="hover:text-white transition">
-                Chăm sóc khách hàng
-              </a>
-            </li>
-          </ul>
         </div>
 
         {/* Contact */}

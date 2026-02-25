@@ -1,0 +1,231 @@
+/* Healthcare Theme CSS - Design System */
+
+/* ========================================
+   COLOR PALETTE
+   ======================================== */
+:root {
+  /* Primary - Blue (Trust & Healthcare) */
+  --hc-primary-50: #eff6ff;
+  --hc-primary-100: #dbeafe;
+  --hc-primary-200: #bfdbfe;
+  --hc-primary-300: #93c5fd;
+  --hc-primary-400: #60a5fa;
+  --hc-primary-500: #3b82f6;
+  --hc-primary-600: #2563eb;
+  --hc-primary-700: #1d4ed8;
+
+  /* Success - Green */
+  --hc-success-50: #f0fdf4;
+  --hc-success-100: #dcfce7;
+  --hc-success-500: #22c55e;
+  --hc-success-600: #16a34a;
+
+  /* Warning - Orange */
+  --hc-warning-50: #fffbeb;
+  --hc-warning-100: #fef3c7;
+  --hc-warning-500: #f59e0b;
+  --hc-warning-600: #d97706;
+
+  /* Danger - Red */
+  --hc-danger-50: #fef2f2;
+  --hc-danger-100: #fee2e2;
+  --hc-danger-500: #ef4444;
+  --hc-danger-600: #dc2626;
+
+  /* Neutral */
+  --hc-gray-50: #f9fafb;
+  --hc-gray-100: #f3f4f6;
+  --hc-gray-200: #e5e7eb;
+  --hc-gray-300: #d1d5db;
+  --hc-gray-400: #9ca3af;
+  --hc-gray-500: #6b7280;
+  --hc-gray-600: #4b5563;
+  --hc-gray-700: #374151;
+  --hc-gray-800: #1f2937;
+  --hc-gray-900: #111827;
+}
+
+/* ========================================
+   GLASSMORPHISM EFFECTS
+   ======================================== */
+.glass-card {
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.glass-card-dark {
+  background: rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* ========================================
+   SHADOWS
+   ======================================== */
+.shadow-soft {
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05),
+    0 2px 4px -1px rgba(0, 0, 0, 0.03);
+}
+
+.shadow-card {
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.08),
+    0 8px 10px -6px rgba(0, 0, 0, 0.04);
+}
+
+.shadow-elevated {
+  box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.12),
+    0 10px 20px -5px rgba(0, 0, 0, 0.08);
+}
+
+/* ========================================
+   ANIMATIONS
+   ======================================== */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideInRight {
+  from {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes pulse-soft {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}
+
+@keyframes bounce-soft {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-5px);
+  }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.4s ease-out forwards;
+}
+
+.animate-slide-in {
+  animation: slideInRight 0.3s ease-out forwards;
+}
+
+/* ========================================
+   HEALTHCARE SPECIFIC COMPONENTS
+   ======================================== */
+
+/* Status Badges */
+.status-pending {
+  background: var(--hc-warning-100);
+  color: var(--hc-warning-600);
+  border: 1px solid var(--hc-warning-500);
+}
+
+.status-confirmed {
+  background: var(--hc-success-100);
+  color: var(--hc-success-600);
+  border: 1px solid var(--hc-success-500);
+}
+
+.status-cancelled {
+  background: var(--hc-danger-100);
+  color: var(--hc-danger-600);
+  border: 1px solid var(--hc-danger-500);
+}
+
+/* Pills / Chips */
+.chip {
+  @apply inline-flex items-center px-4 py-2 rounded-full text-sm font-medium transition-all duration-200;
+}
+
+.chip-default {
+  @apply bg-gray-100 text-gray-700 hover:bg-gray-200;
+}
+
+.chip-active {
+  @apply bg-blue-600 text-white shadow-lg;
+}
+
+/* Time Slots */
+.time-slot {
+  @apply px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200 cursor-pointer;
+}
+
+.time-slot-available {
+  @apply bg-white border-2 border-blue-200 text-gray-700 hover:border-blue-500 hover:bg-blue-50;
+}
+
+.time-slot-selected {
+  @apply bg-blue-600 border-2 border-blue-600 text-white shadow-lg;
+}
+
+.time-slot-unavailable {
+  @apply bg-gray-100 border-2 border-gray-200 text-gray-400 cursor-not-allowed;
+}
+
+/* Cards */
+.hc-card {
+  @apply bg-white rounded-2xl p-5 transition-all duration-300;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+.hc-card:hover {
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.1);
+  transform: translateY(-2px);
+}
+
+/* Gradient Backgrounds */
+.gradient-primary {
+  background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+}
+
+.gradient-success {
+  background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+}
+
+.gradient-hero {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+/* ========================================
+   SCROLLBAR STYLING
+   ======================================== */
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* ========================================
+   NOTIFICATION BADGE
+   ======================================== */
+.notification-badge {
+  @apply absolute -top-1 -right-1 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center text-xs text-white font-bold;
+  animation: pulse-soft 2s infinite;
+}

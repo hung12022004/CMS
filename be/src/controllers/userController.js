@@ -118,3 +118,37 @@ exports.changePassword = async (req, res) => {
     return res.status(500).json({ message: "Server error" });
   }
 };
+
+// POST /api/v1/users/me/avatar
+// file: avatar (multipart/form-data)
+exports.uploadAvatar = async (req, res) => {
+  try {
+    const userId = req.user?.id;
+
+    if (!req.file) {
+      return res.status(400).json({ message: "Vui lòng chọn file ảnh" });
+    }
+
+    // Tạo URL cho avatar
+    const avatarUrl = `/uploads/avatars/${req.file.filename}`;
+
+    const user = await User.findByIdAndUpdate(
+      userId,
+      { avatarUrl },
+      { new: true, select: "-passwordHash" }
+    );
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    return res.status(200).json({
+      message: "Upload avatar thành công",
+      avatarUrl,
+      user,
+    });
+  } catch (err) {
+    console.error("uploadAvatar error:", err);
+    return res.status(500).json({ message: "Server error" });
+  }
+};

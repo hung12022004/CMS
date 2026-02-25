@@ -1,7 +1,18 @@
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { loginApi } from "../services/auth.api";
+import { GoogleLogin } from "@react-oauth/google";
+import { loginApi, googleLoginApi } from "../services/auth.api";
 import { useAuth } from "../hooks/useAuth";
+
+// Chuyển hướng theo role sau login
+function getRedirectByRole(role) {
+  switch (role) {
+    case "admin": return "/dashboard";
+    case "doctor": return "/appointments";
+    case "nurse": return "/dashboard";
+    default: return "/";
+  }
+}
 
 export default function LoginPage() {
   const navigate = useNavigate();
@@ -23,12 +34,33 @@ export default function LoginPage() {
 
       localStorage.setItem("accessToken", data.accessToken);
       login(data.user);
-      navigate("/", { replace: true });
+      navigate(getRedirectByRole(data.user.role), { replace: true });
     } catch (e) {
       setErr(e?.response?.data?.message || "Login failed");
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleGoogleSuccess = async (credentialResponse) => {
+    try {
+      setLoading(true);
+      setErr("");
+
+      const data = await googleLoginApi(credentialResponse.credential);
+
+      localStorage.setItem("accessToken", data.accessToken);
+      login(data.user);
+      navigate(getRedirectByRole(data.user.role), { replace: true });
+    } catch (e) {
+      setErr(e?.response?.data?.message || "Google login failed");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleGoogleError = () => {
+    setErr("Google login failed. Please try again.");
   };
 
   return (
@@ -89,6 +121,26 @@ export default function LoginPage() {
             {loading ? "Loading..." : "Sign in"}
           </button>
         </form>
+
+        {/* Divider */}
+        <div className="my-6 flex items-center gap-3">
+          <div className="h-px flex-1 bg-gray-200"></div>
+          <span className="text-sm text-gray-500">hoặc</span>
+          <div className="h-px flex-1 bg-gray-200"></div>
+        </div>
+
+        {/* Google Login Button */}
+        <div className="flex justify-center">
+          <GoogleLogin
+            onSuccess={handleGoogleSuccess}
+            onError={handleGoogleError}
+            theme="outline"
+            size="large"
+            text="signin_with"
+            shape="pill"
+            width="100%"
+          />
+        </div>
 
         <p className="mt-4 text-sm text-gray-600">
           Bạn chưa có tài khoản?{" "}
