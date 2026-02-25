@@ -47,8 +47,17 @@ const EditForm = ({ form, setForm, isEditing, onAvatarUpload }) => {
     return null;
   };
 
+
   return (
     <div className="grid grid-cols-2 gap-6 text-gray-900">
+      {/* Role (read-only) */}
+      <div>
+        <label className="block text-sm font-medium mb-1">Role</label>
+        <div className={`px-4 py-2 rounded-xl border text-sm font-semibold ${roleInfo.color} cursor-not-allowed`}>
+          {roleInfo.label}
+        </div>
+      </div>
+
       {/* Full Name */}
       <div>
         <label className="block text-sm font-medium mb-1">Full Name</label>

@@ -16,7 +16,7 @@ const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 ======================= */
 function signAccessToken(user) {
   return jwt.sign(
-    { id: user._id.toString(), email: user.email },
+    { id: user._id.toString(), email: user.email, role: user.role },
     process.env.JWT_SECRET,
     { expiresIn: "30m" }
   );
@@ -166,6 +166,12 @@ exports.login = async (req, res) => {
     if (!user.isVerified) {
       return res.status(403).json({
         message: "Email chưa được xác thực",
+      });
+    }
+
+    if (user.isBanned) {
+      return res.status(403).json({
+        message: "Tài khoản của bạn đã bị khóa. Vui lòng liên hệ admin.",
       });
     }
 

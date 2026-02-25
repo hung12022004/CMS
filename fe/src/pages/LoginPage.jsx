@@ -4,6 +4,16 @@ import { GoogleLogin } from "@react-oauth/google";
 import { loginApi, googleLoginApi } from "../services/auth.api";
 import { useAuth } from "../hooks/useAuth";
 
+// Chuyển hướng theo role sau login
+function getRedirectByRole(role) {
+  switch (role) {
+    case "admin": return "/dashboard";
+    case "doctor": return "/appointments";
+    case "nurse": return "/dashboard";
+    default: return "/";
+  }
+}
+
 export default function LoginPage() {
   const navigate = useNavigate();
   const { login } = useAuth();
@@ -24,7 +34,7 @@ export default function LoginPage() {
 
       localStorage.setItem("accessToken", data.accessToken);
       login(data.user);
-      navigate("/", { replace: true });
+      navigate(getRedirectByRole(data.user.role), { replace: true });
     } catch (e) {
       setErr(e?.response?.data?.message || "Login failed");
     } finally {
@@ -41,7 +51,7 @@ export default function LoginPage() {
 
       localStorage.setItem("accessToken", data.accessToken);
       login(data.user);
-      navigate("/", { replace: true });
+
     } catch (e) {
       setErr(e?.response?.data?.message || "Google login failed");
     } finally {

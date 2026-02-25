@@ -42,7 +42,7 @@ const userSchema = new mongoose.Schema(
 
     role: {
       type: String,
-      enum: ["admin", "doctor", "patient"],
+      enum: ["admin", "doctor", "nurse", "patient"],
       default: "patient",
     },
 
@@ -56,6 +56,11 @@ const userSchema = new mongoose.Schema(
       type: String,
       enum: ["vi", "en", "ja", "ko", "zh"],
       default: "vi",
+    },
+
+    isBanned: {
+      type: Boolean,
+      default: false,
     },
 
     avatarUrl: {
