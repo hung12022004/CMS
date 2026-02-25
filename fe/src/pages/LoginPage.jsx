@@ -51,7 +51,7 @@ export default function LoginPage() {
 
       localStorage.setItem("accessToken", data.accessToken);
       login(data.user);
-      navigate(getRedirectByRole(data.user.role), { replace: true });
+
     } catch (e) {
       setErr(e?.response?.data?.message || "Google login failed");
     } finally {

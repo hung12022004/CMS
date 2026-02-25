@@ -153,7 +153,7 @@ export default function Header() {
           >
             <img
               src={getAvatarSrc()}
-              className="w-9 h-9 rounded-full object-cover border"
+
               alt="avatar"
             />
             <div className="hidden sm:block text-left">

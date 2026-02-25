@@ -47,14 +47,6 @@ const EditForm = ({ form, setForm, isEditing, onAvatarUpload }) => {
     return null;
   };
 
-  const ROLE_DISPLAY = {
-    admin: { label: "Admin", color: "text-red-600 bg-red-50 border-red-200" },
-    doctor: { label: "Bác sĩ", color: "text-blue-600 bg-blue-50 border-blue-200" },
-    nurse: { label: "Y tá", color: "text-green-600 bg-green-50 border-green-200" },
-    patient: { label: "Bệnh nhân", color: "text-gray-600 bg-gray-50 border-gray-200" },
-  };
-
-  const roleInfo = ROLE_DISPLAY[form.role] || ROLE_DISPLAY.patient;
 
   return (
     <div className="grid grid-cols-2 gap-6 text-gray-900">
