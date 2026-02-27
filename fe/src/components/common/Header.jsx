@@ -20,6 +20,7 @@ const NAV_BY_ROLE = {
   ],
   doctor: [
     { label: "Dashboard", path: "/dashboard" },
+    { label: "Đặt lịch khám", path: "/doctors" },
     { label: "Bệnh nhân hẹn khám", path: "/appointments" },
     { label: "Hồ sơ bệnh án", path: "/medical-records" },
     { label: "Đơn thuốc", path: "/prescriptions" },

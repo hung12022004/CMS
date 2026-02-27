@@ -1,31 +1,8 @@
-import { useState, useMemo } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useState, useMemo, useEffect } from "react";
+import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
-
-// Mock doctor data (same as DoctorsPage)
-const mockDoctors = [
-    {
-        id: 1,
-        name: "BS. Nguyễn Văn A",
-        specialty: "Tim mạch",
-        avatar: "https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?w=200&h=200&fit=crop&crop=face",
-        price: 300000,
-    },
-    {
-        id: 2,
-        name: "BS. Trần Thị Bình",
-        specialty: "Nhi khoa",
-        avatar: "https://images.unsplash.com/photo-1559839734-2b71ea197ec2?w=200&h=200&fit=crop&crop=face",
-        price: 250000,
-    },
-    {
-        id: 3,
-        name: "BS. Lê Hoàng Cường",
-        specialty: "Nha khoa",
-        avatar: "https://images.unsplash.com/photo-1622253692010-333f2da6031d?w=200&h=200&fit=crop&crop=face",
-        price: 200000,
-    },
-];
+import { getDoctorByIdApi } from "../services/user.api";
+import { createAppointmentApi, updateAppointmentDetailsApi } from "../services/appointment.api";
 
 // Generate time slots
 const generateTimeSlots = () => {
@@ -62,10 +39,44 @@ const reasonSuggestions = [
 export default function BookingPage() {
     const { doctorId } = useParams();
     const navigate = useNavigate();
+    const location = useLocation();
     const { user } = useAuth();
 
-    // Find doctor
-    const doctor = mockDoctors.find((d) => d.id === parseInt(doctorId)) || mockDoctors[0];
+    // Reschedule state
+    const {
+        isReschedule,
+        appointmentId,
+        currentDate,
+        currentTime,
+        currentReason,
+        currentType
+    } = location.state || {};
+
+    const [doctor, setDoctor] = useState(null);
+    const [loading, setLoading] = useState(true);
+
+    // Fetch doctor
+    useEffect(() => {
+        const fetchDoctor = async () => {
+            setLoading(true);
+            try {
+                const res = await getDoctorByIdApi(doctorId);
+                // Map to UI needs
+                setDoctor({
+                    ...res.doctor,
+                    id: res.doctor._id,
+                    specialty: res.doctor.specialty || "Bác sĩ đa khoa",
+                    avatar: res.doctor.avatarUrl || "https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?w=200&h=200&fit=crop&crop=face",
+                    price: 300000,
+                });
+            } catch (err) {
+                console.error("Error fetching doctor:", err);
+            } finally {
+                setLoading(false);
+            }
+        };
+        if (doctorId) fetchDoctor();
+    }, [doctorId]);
 
     // Generate next 7 days
     const dates = useMemo(() => {
@@ -85,11 +96,23 @@ export default function BookingPage() {
         return result;
     }, []);
 
-    const [selectedDate, setSelectedDate] = useState(dates[0]);
+    // Find initial date if rescheduling
+    const initialDateObj = useMemo(() => {
+        if (isReschedule && currentDate) {
+            const dateStr = String(currentDate).split('T')[0];
+            return dates.find(d => {
+                const mapDate = `${d.date.getFullYear()}-${String(d.date.getMonth() + 1).padStart(2, "0")}-${String(d.dayNum).padStart(2, "0")}`;
+                return mapDate === dateStr;
+            }) || dates[0];
+        }
+        return dates[0];
+    }, [isReschedule, currentDate, dates]);
+
+    const [selectedDate, setSelectedDate] = useState(initialDateObj);
     const [timeSlots] = useState(generateTimeSlots);
-    const [selectedTime, setSelectedTime] = useState(null);
-    const [consultationType, setConsultationType] = useState("clinic");
-    const [reason, setReason] = useState("");
+    const [selectedTime, setSelectedTime] = useState(isReschedule ? currentTime : null);
+    const [consultationType, setConsultationType] = useState(isReschedule && currentType ? currentType : "clinic");
+    const [reason, setReason] = useState(isReschedule && currentReason ? currentReason : "");
     const [isSubmitting, setIsSubmitting] = useState(false);
 
     const formatPrice = (price) => {
@@ -97,46 +120,39 @@ export default function BookingPage() {
     };
 
     const handleSubmit = async () => {
-        if (!selectedTime) return;
+        if (!selectedTime || !doctor) return;
 
         setIsSubmitting(true);
-        // Simulate API call
-        await new Promise((resolve) => setTimeout(resolve, 1500));
 
-        // Lưu appointment vào localStorage để chia sẻ giữa các tài khoản
         const dateStr = `${selectedDate.date.getFullYear()}-${String(selectedDate.date.getMonth() + 1).padStart(2, "0")}-${String(selectedDate.dayNum).padStart(2, "0")}`;
-        const newAppointment = {
-            id: Date.now(),
-            doctor: {
-                name: doctor.name,
-                specialty: doctor.specialty,
-                avatar: doctor.avatar,
-                phone: "0901234567",
-            },
-            patient: {
-                name: user?.name || "Bệnh nhân",
-                phone: "0909123456",
-                avatar: user?.avatarUrl || "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&h=200&fit=crop&crop=face",
-                age: 30,
-                gender: user?.gender === "female" ? "Nữ" : "Nam",
-            },
-            date: dateStr,
-            time: selectedTime,
-            type: consultationType,
-            status: "pending",
-            reason: reason || "Khám tổng quát",
-            address: consultationType === "clinic" ? "123 Nguyễn Văn Linh, Q.7, TP.HCM" : null,
-        };
 
-        // Đọc appointments hiện tại từ localStorage
-        const existing = JSON.parse(localStorage.getItem("cms_appointments") || "[]");
-        existing.push(newAppointment);
-        localStorage.setItem("cms_appointments", JSON.stringify(existing));
+        try {
+            if (isReschedule && appointmentId) {
+                await updateAppointmentDetailsApi(appointmentId, {
+                    date: dateStr,
+                    time: selectedTime,
+                    type: consultationType,
+                    reason: reason || "Khám tổng quát",
+                });
+            } else {
+                await createAppointmentApi({
+                    doctorId: doctor.id,
+                    date: dateStr,
+                    time: selectedTime,
+                    type: consultationType,
+                    reason: reason || "Khám tổng quát",
+                    address: consultationType === "clinic" ? "123 Nguyễn Văn Linh, Q.7, TP.HCM" : null,
+                });
+            }
 
-        setIsSubmitting(false);
-
-        // Navigate to appointments with success message
-        navigate("/appointments", { state: { bookingSuccess: true } });
+            setIsSubmitting(false);
+            // Navigate to appointments with success message
+            navigate("/appointments", { state: { bookingSuccess: true, message: isReschedule ? "Đổi lịch thành công!" : "Đặt lịch thành công!" } });
+        } catch (err) {
+            console.error("Error saving appointment:", err);
+            alert("Có lỗi xảy ra. Vui lòng thử lại.");
+            setIsSubmitting(false);
+        }
     };
 
     const addSuggestion = (suggestion) => {
@@ -144,6 +160,23 @@ export default function BookingPage() {
             setReason((prev) => (prev ? `${prev}, ${suggestion}` : suggestion));
         }
     };
+
+    if (loading) {
+        return (
+            <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+            </div>
+        );
+    }
+
+    if (!doctor) {
+        return (
+            <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-4">
+                <h2 className="text-xl font-bold text-gray-800 mb-2">Bác sĩ không tồn tại</h2>
+                <button onClick={() => navigate("/doctors")} className="text-blue-600 hover:underline">Quay lại danh sách</button>
+            </div>
+        );
+    }
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 pt-20 pb-24">
@@ -158,7 +191,9 @@ export default function BookingPage() {
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
                         </svg>
                     </button>
-                    <h1 className="text-xl font-bold text-gray-800">Đặt lịch khám</h1>
+                    <h1 className="text-xl font-bold text-gray-800">
+                        {isReschedule ? "Đổi lịch khám" : "Đặt lịch khám"}
+                    </h1>
                 </div>
 
                 {/* Doctor Info Card */}
@@ -360,8 +395,8 @@ export default function BookingPage() {
                             </>
                         ) : (
                             <>
-                                Xác nhận đặt lịch
-                                {selectedTime && <span className="ml-2">• {formatPrice(doctor.price)}</span>}
+                                {isReschedule ? "Xác nhận đổi lịch" : "Xác nhận đặt lịch"}
+                                {selectedTime && !isReschedule && <span className="ml-2">• {formatPrice(doctor.price)}</span>}
                             </>
                         )}
                     </button>

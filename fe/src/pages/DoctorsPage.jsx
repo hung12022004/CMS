@@ -1,75 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-
-// Mock doctors data
-const mockDoctors = [
-    {
-        id: 1,
-        name: "BS. Nguyễn Văn A",
-        specialty: "Tim mạch",
-        avatar: "https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?w=200&h=200&fit=crop&crop=face",
-        rating: 4.9,
-        reviews: 127,
-        experience: "15 năm",
-        price: 300000,
-        available: true,
-    },
-    {
-        id: 2,
-        name: "BS. Trần Thị Bình",
-        specialty: "Nhi khoa",
-        avatar: "https://images.unsplash.com/photo-1559839734-2b71ea197ec2?w=200&h=200&fit=crop&crop=face",
-        rating: 4.8,
-        reviews: 89,
-        experience: "12 năm",
-        price: 250000,
-        available: true,
-    },
-    {
-        id: 3,
-        name: "BS. Lê Hoàng Cường",
-        specialty: "Nha khoa",
-        avatar: "https://images.unsplash.com/photo-1622253692010-333f2da6031d?w=200&h=200&fit=crop&crop=face",
-        rating: 4.7,
-        reviews: 156,
-        experience: "10 năm",
-        price: 200000,
-        available: true,
-    },
-    {
-        id: 4,
-        name: "BS. Phạm Minh Đức",
-        specialty: "Thần kinh",
-        avatar: "https://images.unsplash.com/photo-1537368910025-700350fe46c7?w=200&h=200&fit=crop&crop=face",
-        rating: 4.9,
-        reviews: 203,
-        experience: "20 năm",
-        price: 400000,
-        available: false,
-    },
-    {
-        id: 5,
-        name: "BS. Hoàng Thị Hoa",
-        specialty: "Da liễu",
-        avatar: "https://images.unsplash.com/photo-1594824476967-48c8b964273f?w=200&h=200&fit=crop&crop=face",
-        rating: 4.6,
-        reviews: 78,
-        experience: "8 năm",
-        price: 280000,
-        available: true,
-    },
-    {
-        id: 6,
-        name: "BS. Ngô Quang Khải",
-        specialty: "Mắt",
-        avatar: "https://images.unsplash.com/photo-1582750433449-648ed127bb54?w=200&h=200&fit=crop&crop=face",
-        rating: 4.8,
-        reviews: 112,
-        experience: "14 năm",
-        price: 350000,
-        available: true,
-    },
-];
+import { getDoctorsApi } from "../services/user.api";
 
 const specialties = [
     "Tất cả",
@@ -95,12 +26,41 @@ export default function DoctorsPage() {
     const [searchParams] = useSearchParams();
     const initialSearch = searchParams.get("search") || "";
 
+    const [doctors, setDoctors] = useState([]);
+    const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState(initialSearch);
     const [selectedSpecialty, setSelectedSpecialty] = useState("Tất cả");
     const [activeFilter, setActiveFilter] = useState("all");
 
+    useEffect(() => {
+        const fetchDoctors = async () => {
+            setLoading(true);
+            try {
+                const res = await getDoctorsApi();
+                // Map API doctors to include mock UI fields if missing
+                const mapped = (res.doctors || []).map(d => ({
+                    ...d,
+                    id: d._id, // Use _id as id for links
+                    specialty: d.specialty || "Bác sĩ đa khoa",
+                    avatar: d.avatarUrl || "https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?w=200&h=200&fit=crop&crop=face",
+                    rating: 4.8,
+                    reviews: 124,
+                    experience: "10 năm",
+                    price: 300000,
+                    available: true,
+                }));
+                setDoctors(mapped);
+            } catch (err) {
+                console.error("Error fetching doctors:", err);
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchDoctors();
+    }, []);
+
     // Filter doctors
-    const filteredDoctors = mockDoctors.filter((doctor) => {
+    const filteredDoctors = doctors.filter((doctor) => {
         const matchesSearch =
             doctor.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
             doctor.specialty.toLowerCase().includes(searchQuery.toLowerCase());

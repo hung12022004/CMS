@@ -152,3 +152,48 @@ exports.uploadAvatar = async (req, res) => {
     return res.status(500).json({ message: "Server error" });
   }
 };
+
+// GET /api/v1/users/patients
+// Lấy danh sách bệnh nhân đã đăng ký (cho bác sĩ / y tá)
+exports.getPatients = async (req, res) => {
+  try {
+    const patients = await User.find({ role: "patient", isVerified: true })
+      .select("name email phoneNumber gender avatarUrl")
+      .sort({ name: 1 });
+
+    return res.status(200).json({ patients });
+  } catch (err) {
+    console.error("getPatients error:", err);
+    return res.status(500).json({ message: "Server error" });
+  }
+};
+// GET /api/v1/users/doctors
+// Lấy danh sách bác sĩ
+exports.getDoctors = async (req, res) => {
+  try {
+    const doctors = await User.find({ role: "doctor" })
+      .select("name email phoneNumber gender avatarUrl")
+      .sort({ name: 1 });
+
+    return res.status(200).json({ doctors });
+  } catch (err) {
+    console.error("getDoctors error:", err);
+    return res.status(500).json({ message: "Server error" });
+  }
+};
+
+// GET /api/v1/users/doctors/:id
+// Lấy chi tiết 1 bác sĩ
+exports.getDoctorById = async (req, res) => {
+  try {
+    const doctor = await User.findOne({ _id: req.params.id, role: "doctor" })
+      .select("name email phoneNumber gender avatarUrl");
+
+    if (!doctor) return res.status(404).json({ message: "Bác sĩ không tồn tại" });
+
+    return res.status(200).json({ doctor });
+  } catch (err) {
+    console.error("getDoctorById error:", err);
+    return res.status(500).json({ message: "Server error" });
+  }
+};
