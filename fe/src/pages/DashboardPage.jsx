@@ -183,7 +183,7 @@ export default function DashboardPage() {
             <div className="max-w-5xl mx-auto px-4 -mt-20">
                 {/* Quick Menu Grid */}
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-                    {quickMenuItems.map((item, index) => (
+                    {quickMenuItems.filter(item => !(user?.role === "doctor" && item.id === 1)).map((item, index) => (
                         <button
                             key={item.id}
                             onClick={() => navigate(item.path)}
@@ -235,8 +235,8 @@ export default function DashboardPage() {
                                 key={index}
                                 onClick={() => setCurrentBanner(index)}
                                 className={`w-2 h-2 rounded-full transition-all duration-300 ${index === currentBanner
-                                        ? "w-6 bg-white"
-                                        : "bg-white/50 hover:bg-white/70"
+                                    ? "w-6 bg-white"
+                                    : "bg-white/50 hover:bg-white/70"
                                     }`}
                             />
                         ))}

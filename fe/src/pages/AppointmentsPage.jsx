@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
+import { getAppointmentsApi, updateAppointmentStatusApi } from "../services/appointment.api";
 
 // Mock appointments data (Doctor/Nurse view - hiển thị bệnh nhân) - fallback demo
 const mockDoctorAppointments = {
@@ -79,35 +80,35 @@ export default function AppointmentsPage() {
     const location = useLocation();
     const { user } = useAuth();
     const [activeTab, setActiveTab] = useState("upcoming");
+    // State
+    const [appointmentsList, setAppointmentsList] = useState([]);
+    const [loading, setLoading] = useState(true);
     const [showSuccess, setShowSuccess] = useState(location.state?.bookingSuccess || false);
 
     const isStaffView = user?.role === "doctor" || user?.role === "nurse" || user?.role === "admin";
 
-    // Đọc appointments từ localStorage (được lưu khi bệnh nhân đặt lịch)
-    const [savedAppointments, setSavedAppointments] = useState([]);
+    // Fetch data
     useEffect(() => {
-        const stored = JSON.parse(localStorage.getItem("cms_appointments") || "[]");
-        setSavedAppointments(stored);
+        const fetchAppointments = async () => {
+            setLoading(true);
+            try {
+                const res = await getAppointmentsApi();
+                setAppointmentsList(res.appointments || []);
+            } catch (err) {
+                console.error("Error fetching appointments:", err);
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchAppointments();
     }, []);
 
-    // Xây dựng data source
-    let dataSource;
-    if (isStaffView) {
-        // Doctor/Nurse: hiện bệnh nhân đã đặt lịch từ localStorage + mock demo
-        const lsUpcoming = savedAppointments.filter(a => a.status !== "completed" && a.status !== "cancelled");
-        dataSource = {
-            upcoming: [...lsUpcoming, ...mockDoctorAppointments.upcoming],
-            history: mockDoctorAppointments.history,
-        };
-    } else {
-        // Patient: hiện lịch hẹn đã đặt từ localStorage
-        const lsUpcoming = savedAppointments.filter(a => a.status !== "completed" && a.status !== "cancelled");
-        const lsHistory = savedAppointments.filter(a => a.status === "completed");
-        dataSource = {
-            upcoming: lsUpcoming,
-            history: lsHistory,
-        };
-    }
+    // Merge API data with mock data for demo purposes, or just use API data
+    // For this implementation, we prefer real data from API
+    const dataSource = {
+        upcoming: appointmentsList.filter(a => a.status !== "completed" && a.status !== "cancelled"),
+        history: appointmentsList.filter(a => a.status === "completed" || a.status === "cancelled"),
+    };
 
     const appointments = activeTab === "upcoming" ? dataSource.upcoming : dataSource.history;
 
@@ -118,6 +119,49 @@ export default function AppointmentsPage() {
             day: "numeric",
             month: "long",
             year: "numeric",
+        });
+    };
+
+    // Cập nhật status
+    const updateStatus = async (appointmentId, newStatus) => {
+        try {
+            await updateAppointmentStatusApi(appointmentId, newStatus);
+            // Refresh list
+            const res = await getAppointmentsApi();
+            setAppointmentsList(res.appointments || []);
+        } catch (err) {
+            console.error("Error updating appointment status:", err);
+            alert("Có lỗi xảy ra khi cập nhật trạng thái");
+        }
+    };
+
+    const handleConfirm = (appointmentId) => {
+        updateStatus(appointmentId, "confirmed");
+    };
+
+    const handleCancel = (appointmentId) => {
+        if (window.confirm("Bạn có chắc muốn hủy lịch hẹn này?")) {
+            updateStatus(appointmentId, "cancelled");
+        }
+    };
+
+    const handleReschedule = (appointment) => {
+        // Navigate to booking page with doctorId and state indicating rescheduling
+        const doctorId = isStaffView ? appointment.doctorId?._id : appointment.doctorId?._id;
+        if (!doctorId) {
+            alert("Lỗi: Không tìm thấy thông tin bác sĩ.");
+            return;
+        }
+
+        navigate(`/booking/${doctorId}`, {
+            state: {
+                isReschedule: true,
+                appointmentId: appointment._id,
+                currentDate: appointment.date,
+                currentTime: appointment.time,
+                currentReason: appointment.reason,
+                currentType: appointment.type
+            }
         });
     };
 
@@ -141,7 +185,9 @@ export default function AppointmentsPage() {
                             </svg>
                         </div>
                         <div className="flex-1">
-                            <p className="font-semibold text-emerald-800">Đặt lịch thành công!</p>
+                            <p className="font-semibold text-emerald-800">
+                                {location.state?.message || "Đặt lịch thành công!"}
+                            </p>
                             <p className="text-sm text-emerald-600">Chúng tôi sẽ xác nhận lịch hẹn sớm nhất.</p>
                         </div>
                         <button onClick={() => setShowSuccess(false)} className="text-emerald-500 hover:text-emerald-700">
@@ -191,7 +237,7 @@ export default function AppointmentsPage() {
                         const status = statusConfig[appointment.status];
                         return (
                             <div
-                                key={appointment.id}
+                                key={appointment._id}
                                 className={`bg-white rounded-2xl overflow-hidden shadow-lg border-l-4 ${status.border} animate-fade-in`}
                                 style={{ animationDelay: `${index * 0.05}s` }}
                             >
@@ -210,18 +256,18 @@ export default function AppointmentsPage() {
                                 <div className="p-5">
                                     <div className="flex gap-4">
                                         <img
-                                            src={isStaffView ? appointment.patient.avatar : appointment.doctor.avatar}
-                                            alt={isStaffView ? appointment.patient.name : appointment.doctor.name}
+                                            src={isStaffView ? (appointment.patientId?.avatarUrl || appointment.patient?.avatar) : (appointment.doctorId?.avatarUrl || appointment.doctor?.avatar)}
+                                            alt={isStaffView ? (appointment.patientId?.name || appointment.patient?.name) : (appointment.doctorId?.name || appointment.doctor?.name)}
                                             className="w-16 h-16 rounded-xl object-cover"
                                         />
                                         <div className="flex-1">
                                             <h3 className="font-bold text-gray-800">
-                                                {isStaffView ? appointment.patient.name : appointment.doctor.name}
+                                                {isStaffView ? (appointment.patientId?.name || appointment.patient?.name) : (appointment.doctorId?.name || appointment.doctor?.name)}
                                             </h3>
                                             <p className="text-blue-600 text-sm">
                                                 {isStaffView
-                                                    ? `${appointment.patient.gender}, ${appointment.patient.age} tuổi`
-                                                    : appointment.doctor.specialty
+                                                    ? `${appointment.patientId?.gender || appointment.patient?.gender || "S/N"}, ${appointment.patientId?.age || appointment.patient?.age || "?"} tuổi`
+                                                    : (appointment.doctorId?.specialty || appointment.doctor?.specialty || "Bác sĩ")
                                                 }
                                             </p>
                                             {isStaffView && appointment.reason && (
@@ -251,7 +297,7 @@ export default function AppointmentsPage() {
                                         <div className="flex gap-3 mt-4 pt-4 border-t">
                                             {/* Call Button */}
                                             <button
-                                                onClick={() => handleCall(isStaffView ? appointment.patient?.phone : appointment.doctor?.phone)}
+                                                onClick={() => handleCall(isStaffView ? (appointment.patientId?.phoneNumber || appointment.patient?.phone) : (appointment.doctorId?.phoneNumber || appointment.doctor?.phone))}
                                                 className="flex items-center gap-2 px-4 py-2 bg-emerald-50 text-emerald-700 rounded-xl hover:bg-emerald-100 transition-colors"
                                             >
                                                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -276,13 +322,39 @@ export default function AppointmentsPage() {
 
                                             <div className="flex-1" />
 
+                                            {/* Confirm Button - Nurse only, pending only */}
+                                            {isStaffView && appointment.status === "pending" && (
+                                                <button
+                                                    onClick={() => handleConfirm(appointment._id)}
+                                                    className="px-4 py-2 bg-emerald-500 text-white hover:bg-emerald-600 rounded-xl transition-colors font-medium"
+                                                >
+                                                    ✅ Xác nhận
+                                                </button>
+                                            )}
+
+                                            {/* Create Medical Record - Doctor only, confirmed appointments */}
+                                            {isStaffView && user?.role === "doctor" && appointment.status === "confirmed" && (
+                                                <button
+                                                    onClick={() => navigate("/medical-records", { state: { patientId: appointment.patientId?._id, patientName: appointment.patientId?.name, appointmentId: appointment._id } })}
+                                                    className="px-4 py-2 bg-blue-100 text-blue-700 hover:bg-blue-200 rounded-xl transition-colors font-medium"
+                                                >
+                                                    📝 Tạo hồ sơ
+                                                </button>
+                                            )}
+
                                             {/* Reschedule Button */}
-                                            <button className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-xl transition-colors">
+                                            <button
+                                                onClick={() => handleReschedule(appointment)}
+                                                className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-xl transition-colors"
+                                            >
                                                 Đổi lịch
                                             </button>
 
                                             {/* Cancel Button */}
-                                            <button className="px-4 py-2 text-red-500 hover:bg-red-50 rounded-xl transition-colors">
+                                            <button
+                                                onClick={() => handleCancel(appointment._id)}
+                                                className="px-4 py-2 text-red-500 hover:bg-red-50 rounded-xl transition-colors"
+                                            >
                                                 Hủy
                                             </button>
                                         </div>

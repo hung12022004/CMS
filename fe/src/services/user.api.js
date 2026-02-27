@@ -42,3 +42,30 @@ export const uploadAvatarApi = async (file) => {
   });
   return res.data;
 };
+
+/**
+ * GET /api/v1/users/patients
+ * Lấy danh sách bệnh nhân (cho bác sĩ / y tá)
+ */
+export const getPatientsApi = async () => {
+  const res = await api.get("/users/patients");
+  return res.data;
+};
+
+/**
+ * GET /api/v1/users/doctors
+ * Lấy danh sách bác sĩ
+ */
+export const getDoctorsApi = async () => {
+  const res = await api.get("/users/doctors");
+  return res.data;
+};
+
+/**
+ * GET /api/v1/users/doctors/:id
+ * Lấy chi tiết bác sĩ
+ */
+export const getDoctorByIdApi = async (id) => {
+  const res = await api.get(`/users/doctors/${id}`);
+  return res.data;
+};

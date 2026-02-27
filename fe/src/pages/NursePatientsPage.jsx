@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "../hooks/useAuth";
 
 // Mock data bệnh nhân
@@ -107,6 +107,34 @@ export default function NursePatientsPage() {
     const [editingVitals, setEditingVitals] = useState(null);
     const [vitalsForm, setVitalsForm] = useState({ bp: "", heartRate: "", height: "", weight: "" });
 
+    // Đọc appointments từ localStorage và merge với mock data
+    useEffect(() => {
+        const stored = JSON.parse(localStorage.getItem("cms_appointments") || "[]");
+        if (stored.length > 0) {
+            const lsPatients = stored
+                .filter(a => a.status !== "cancelled") // bỏ lịch đã hủy
+                .map((a, idx) => ({
+                    id: `ls_${a.id}`,
+                    name: a.patient?.name || "Bệnh nhân",
+                    email: "",
+                    phone: a.patient?.phone || "",
+                    gender: a.patient?.gender === "Nữ" ? "female" : "male",
+                    dob: "",
+                    bloodType: "",
+                    appointment: {
+                        date: a.date,
+                        time: a.time,
+                        doctor: a.doctor?.name || "",
+                        specialty: a.doctor?.specialty || "",
+                        status: a.status || "pending",
+                    },
+                    vitals: { bp: "", heartRate: null, height: null, weight: null },
+                    _lsId: a.id, // giữ id gốc để sync lại localStorage
+                }));
+            setPatients([...lsPatients, ...mockPatients]);
+        }
+    }, []);
+
     const filteredPatients = patients.filter(
         (p) =>
             p.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -121,6 +149,13 @@ export default function NursePatientsPage() {
                     : p
             )
         );
+        // Sync lại localStorage nếu là bệnh nhân từ booking
+        const patient = patients.find(p => p.id === patientId);
+        if (patient && patient._lsId) {
+            const stored = JSON.parse(localStorage.getItem("cms_appointments") || "[]");
+            const updated = stored.map(a => a.id === patient._lsId ? { ...a, status: newStatus } : a);
+            localStorage.setItem("cms_appointments", JSON.stringify(updated));
+        }
     };
 
     const handleVitalsEdit = (patient) => {
@@ -162,6 +197,13 @@ export default function NursePatientsPage() {
                         : p
                 )
             );
+            // Sync localStorage
+            const patient = patients.find(p => p.id === patientId);
+            if (patient && patient._lsId) {
+                const stored = JSON.parse(localStorage.getItem("cms_appointments") || "[]");
+                const updated = stored.map(a => a.id === patient._lsId ? { ...a, time: newTime } : a);
+                localStorage.setItem("cms_appointments", JSON.stringify(updated));
+            }
         }
     };
 

@@ -45,10 +45,10 @@ export default function AppRoutes() {
           <Route path="/change-password" element={<ChangePasswordPage />} />
         </Route>
 
-        {/* Patient routes */}
+        {/* Healthcare routes (Booking & Doctor list) */}
         <Route
           element={
-            <ProtectedRoute allowedRoles={["patient"]} />
+            <ProtectedRoute allowedRoles={["patient", "doctor", "nurse", "admin"]} />
           }
         >
           <Route path="/doctors" element={<DoctorsPage />} />

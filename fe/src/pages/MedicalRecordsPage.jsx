@@ -1,8 +1,11 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
+import { getMedicalRecordsApi, createMedicalRecordApi } from "../services/medicalRecord.api";
+import { getPatientsApi } from "../services/user.api";
+import { updateAppointmentStatusApi } from "../services/appointment.api";
 
-// Mock medical records - Doctor view: hiện bệnh nhân thay vì bác sĩ
+// Mock medical records - Doctor view
 const mockDoctorRecords = [
     {
         id: 1,
@@ -68,20 +71,59 @@ const mockDoctorRecords = [
 export default function MedicalRecordsPage() {
     const navigate = useNavigate();
     const { user } = useAuth();
+    // State
+    const [records, setRecords] = useState([]);
+    const [patientsList, setPatientsList] = useState([]);
+    const [loading, setLoading] = useState(true);
     const [expandedId, setExpandedId] = useState(null);
     const [activeAccordion, setActiveAccordion] = useState({});
+    const [showForm, setShowForm] = useState(false);
 
-    // Bệnh nhân mới: trống. Staff/Doctor: hiện hồ sơ bệnh nhân để kê
+    // Form state
+    const [formPatientId, setFormPatientId] = useState("");
+    const [formAppointmentId, setFormAppointmentId] = useState(null);
+    const [formDiagnosis, setFormDiagnosis] = useState("");
+    const [formSymptomInput, setFormSymptomInput] = useState("");
+    const [formSymptoms, setFormSymptoms] = useState([]);
+    const [formNotes, setFormNotes] = useState("");
+
+    const isDoctor = user?.role === "doctor";
     const isStaff = user?.role === "doctor" || user?.role === "nurse" || user?.role === "admin";
-    const records = isStaff ? mockDoctorRecords : [];
+
+    // Fetch data
+    useEffect(() => {
+        const fetchData = async () => {
+            setLoading(true);
+            try {
+                const [recordsRes, patientsRes] = await Promise.all([
+                    getMedicalRecordsApi(),
+                    isDoctor ? getPatientsApi() : Promise.resolve({ patients: [] })
+                ]);
+                const allRecords = recordsRes.records || [];
+                setRecords(isStaff ? allRecords : allRecords.filter(r => r.patientId?.email === user?.email || r.patient?.email === user?.email));
+                setPatientsList(patientsRes.patients || []);
+
+                // Check if we came from Appointments with a patient
+                const locationState = window.history.state?.usr; // Simple way to access location state in this context
+                if (locationState?.patientId && isDoctor) {
+                    setFormPatientId(locationState.patientId);
+                    if (locationState.appointmentId) {
+                        setFormAppointmentId(locationState.appointmentId);
+                    }
+                    setShowForm(true);
+                }
+            } catch (err) {
+                console.error("Error fetching medical records data:", err);
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchData();
+    }, [isDoctor]);
 
     const formatDate = (dateStr) => {
         const date = new Date(dateStr);
-        return date.toLocaleDateString("vi-VN", {
-            day: "numeric",
-            month: "long",
-            year: "numeric",
-        });
+        return date.toLocaleDateString("vi-VN", { day: "numeric", month: "long", year: "numeric" });
     };
 
     const toggleAccordion = (recordId, section) => {
@@ -95,18 +137,198 @@ export default function MedicalRecordsPage() {
         return activeAccordion[`${recordId}-${section}`] || false;
     };
 
+    // Form handlers
+    const addSymptom = () => {
+        const s = formSymptomInput.trim();
+        if (s && !formSymptoms.includes(s)) {
+            setFormSymptoms([...formSymptoms, s]);
+            setFormSymptomInput("");
+        }
+    };
+
+    const removeSymptom = (idx) => {
+        setFormSymptoms(formSymptoms.filter((_, i) => i !== idx));
+    };
+
+    const handleSymptomKeyDown = (e) => {
+        if (e.key === "Enter") {
+            e.preventDefault();
+            addSymptom();
+        }
+    };
+
+    const handleSaveRecord = async () => {
+        if (!formPatientId || !formDiagnosis.trim()) return;
+
+        const today = new Date();
+        const dateStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+
+        try {
+            const res = await createMedicalRecordApi({
+                patientId: formPatientId,
+                diagnosis: formDiagnosis.trim(),
+                symptoms: formSymptoms,
+                notes: formNotes.trim(),
+                date: dateStr,
+            });
+
+            if (res.record) {
+                // If this is linked to an appointment, complete it
+                if (formAppointmentId) {
+                    try {
+                        await updateAppointmentStatusApi(formAppointmentId, "completed");
+                    } catch (err) {
+                        console.error("Failed to complete appointment automatically:", err);
+                    }
+                }
+
+                // Refresh list
+                const recordsRes = await getMedicalRecordsApi();
+                setRecords(recordsRes.records || []);
+
+                // Reset form
+                setFormPatientId("");
+                setFormAppointmentId(null);
+                setFormDiagnosis("");
+                setFormSymptoms([]);
+                setFormSymptomInput("");
+                setFormNotes("");
+                setShowForm(false);
+            }
+        } catch (err) {
+            console.error("Error saving medical record:", err);
+            alert("Có lỗi xảy ra khi lưu hồ sơ");
+        }
+    };
+
     return (
         <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 pt-20 pb-8">
             <div className="max-w-3xl mx-auto px-4">
                 {/* Header */}
-                <div className="mb-6">
-                    <h1 className="text-2xl font-bold text-gray-800 mb-2">
-                        {isStaff ? "Hồ sơ bệnh án bệnh nhân" : "Hồ sơ bệnh án"}
-                    </h1>
-                    <p className="text-gray-500">
-                        {isStaff ? "Quản lý và kê hồ sơ cho bệnh nhân" : "Lịch sử khám và kết quả điều trị"}
-                    </p>
+                <div className="mb-6 flex items-center justify-between">
+                    <div>
+                        <h1 className="text-2xl font-bold text-gray-800 mb-2">
+                            {isStaff ? "Hồ sơ bệnh án bệnh nhân" : "Hồ sơ bệnh án"}
+                        </h1>
+                        <p className="text-gray-500">
+                            {isStaff ? "Quản lý và kê hồ sơ cho bệnh nhân" : "Lịch sử khám và kết quả điều trị"}
+                        </p>
+                    </div>
+                    {isDoctor && (
+                        <button
+                            onClick={() => setShowForm(!showForm)}
+                            className="px-5 py-2.5 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700 transition-colors flex items-center gap-2 shadow-lg"
+                        >
+                            {showForm ? "✕ Đóng" : "+ Tạo hồ sơ mới"}
+                        </button>
+                    )}
                 </div>
+
+                {/* ========== NEW RECORD FORM ========== */}
+                {showForm && isDoctor && (
+                    <div className="bg-white rounded-2xl shadow-xl p-6 mb-6 border-2 border-blue-200 animate-fade-in">
+                        <h2 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
+                            🩺 Tạo hồ sơ bệnh án mới
+                        </h2>
+
+                        {/* Patient Select */}
+                        <div className="mb-4">
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Chọn bệnh nhân *</label>
+                            <select
+                                value={formPatientId}
+                                onChange={e => setFormPatientId(e.target.value)}
+                                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 text-gray-900 bg-white"
+                            >
+                                <option value="">-- Chọn bệnh nhân --</option>
+                                {patientsList.map((p) => (
+                                    <option key={p._id} value={p._id}>
+                                        {p.name} ({p.phoneNumber || p.email})
+                                    </option>
+                                ))}
+                            </select>
+                            {patientsList.length === 0 && (
+                                <p className="text-xs text-amber-600 mt-1">Chưa có bệnh nhân nào đăng ký tài khoản</p>
+                            )}
+                        </div>
+
+                        {/* Diagnosis */}
+                        <div className="mb-4">
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Chẩn đoán / Tình trạng *</label>
+                            <input
+                                type="text"
+                                value={formDiagnosis}
+                                onChange={e => setFormDiagnosis(e.target.value)}
+                                placeholder="VD: Viêm họng cấp, Cảm cúm nhẹ..."
+                                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 text-gray-700"
+                            />
+                        </div>
+
+                        {/* Symptoms */}
+                        <div className="mb-4">
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Triệu chứng</label>
+                            <div className="flex gap-2">
+                                <input
+                                    type="text"
+                                    value={formSymptomInput}
+                                    onChange={e => setFormSymptomInput(e.target.value)}
+                                    onKeyDown={handleSymptomKeyDown}
+                                    placeholder="Nhập triệu chứng, bấm Enter để thêm..."
+                                    className="flex-1 px-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 text-gray-700 text-sm"
+                                />
+                                <button
+                                    onClick={addSymptom}
+                                    className="px-4 py-2.5 bg-blue-100 text-blue-700 rounded-xl hover:bg-blue-200 transition-colors text-sm font-medium"
+                                >
+                                    + Thêm
+                                </button>
+                            </div>
+                            {formSymptoms.length > 0 && (
+                                <div className="flex flex-wrap gap-2 mt-2">
+                                    {formSymptoms.map((s, i) => (
+                                        <span
+                                            key={i}
+                                            className="inline-flex items-center gap-1 px-3 py-1.5 bg-blue-50 text-blue-700 rounded-full text-sm"
+                                        >
+                                            {s}
+                                            <button
+                                                onClick={() => removeSymptom(i)}
+                                                className="ml-1 text-blue-400 hover:text-red-500"
+                                            >
+                                                ✕
+                                            </button>
+                                        </span>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Notes */}
+                        <div className="mb-4">
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Ghi chú / Chú thích cho bệnh nhân</label>
+                            <textarea
+                                value={formNotes}
+                                onChange={e => setFormNotes(e.target.value)}
+                                placeholder="VD: Tái khám sau 1 tuần, uống nhiều nước, nghỉ ngơi..."
+                                rows={3}
+                                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 text-gray-700 resize-none"
+                            />
+                        </div>
+
+                        {/* Save Button */}
+                        <div className="flex justify-end">
+                            <button
+                                onClick={handleSaveRecord}
+                                disabled={!formPatientId || !formDiagnosis.trim()}
+                                className={`px-6 py-2.5 rounded-xl font-semibold text-white transition-colors ${formPatientId && formDiagnosis.trim()
+                                    ? "bg-emerald-500 hover:bg-emerald-600 shadow-lg"
+                                    : "bg-gray-300 cursor-not-allowed"
+                                    }`}
+                            >
+                                ✅ Lưu hồ sơ
+                            </button>
+                        </div>
+                    </div>
+                )}
 
                 {/* Timeline */}
                 <div className="relative">
@@ -117,7 +339,7 @@ export default function MedicalRecordsPage() {
                     <div className="space-y-6">
                         {records.map((record, index) => (
                             <div
-                                key={record.id}
+                                key={record._id || record.id}
                                 className="relative pl-16 animate-fade-in"
                                 style={{ animationDelay: `${index * 0.1}s` }}
                             >
@@ -129,37 +351,40 @@ export default function MedicalRecordsPage() {
                                     {/* Header */}
                                     <div
                                         className="p-5 cursor-pointer hover:bg-gray-50 transition-colors"
-                                        onClick={() => setExpandedId(expandedId === record.id ? null : record.id)}
+                                        onClick={() => setExpandedId(expandedId === (record._id || record.id) ? null : (record._id || record.id))}
                                     >
                                         <div className="flex items-center justify-between mb-3">
                                             <span className="text-sm text-blue-600 font-semibold">
                                                 {formatDate(record.date)}
                                             </span>
                                             <svg
-                                                className={`w-5 h-5 text-gray-400 transition-transform ${expandedId === record.id ? "rotate-180" : ""
-                                                    }`}
-                                                fill="none"
-                                                stroke="currentColor"
-                                                viewBox="0 0 24 24"
+                                                className={`w-5 h-5 text-gray-400 transition-transform ${expandedId === (record._id || record.id) ? "rotate-180" : ""}`}
+                                                fill="none" stroke="currentColor" viewBox="0 0 24 24"
                                             >
                                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                                             </svg>
                                         </div>
 
                                         <div className="flex items-center gap-3">
-                                            <img
-                                                src={isStaff ? record.patient.avatar : record.doctor?.avatar}
-                                                alt={isStaff ? record.patient.name : record.doctor?.name}
-                                                className="w-12 h-12 rounded-xl object-cover"
-                                            />
+                                            {(record.patientId?.avatarUrl || record.patient?.avatar) ? (
+                                                <img
+                                                    src={isStaff ? (record.patientId?.avatarUrl || record.patient?.avatar) : (record.doctorId?.avatarUrl || record.doctor?.avatar)}
+                                                    alt={isStaff ? (record.patientId?.name || record.patient?.name) : (record.doctorId?.name || record.doctor?.name)}
+                                                    className="w-12 h-12 rounded-xl object-cover"
+                                                />
+                                            ) : (
+                                                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white text-lg font-bold">
+                                                    {(record.patientId?.name || record.patient?.name || "?")[0]}
+                                                </div>
+                                            )}
                                             <div>
                                                 <h3 className="font-bold text-gray-800">
-                                                    {isStaff ? record.patient.name : record.doctor?.name}
+                                                    {isStaff ? (record.patientId?.name || record.patient?.name) : (record.doctorId?.name || record.doctor || "Bác sĩ")}
                                                 </h3>
                                                 <p className="text-sm text-gray-500">
                                                     {isStaff
-                                                        ? `${record.patient.gender}, ${record.patient.age} tuổi`
-                                                        : record.doctor?.specialty
+                                                        ? ((record.patientId?.gender || record.patient?.gender) && (record.patientId?.age || record.patient?.age) ? `${record.patientId?.gender || record.patient?.gender}, ${record.patientId?.age || record.patient?.age} tuổi` : "Bệnh nhân")
+                                                        : ""
                                                     }
                                                 </p>
                                             </div>
@@ -167,101 +392,94 @@ export default function MedicalRecordsPage() {
 
                                         <div className="mt-3 p-3 bg-blue-50 rounded-xl">
                                             <p className="text-sm text-gray-500">Chẩn đoán</p>
-                                            <p className="font-semibold text-gray-800">
-                                                {record.diagnosis}
-                                            </p>
+                                            <p className="font-semibold text-gray-800">{record.diagnosis}</p>
                                         </div>
                                     </div>
 
                                     {/* Expanded Content */}
-                                    {expandedId === record.id && (
+                                    {expandedId === (record._id || record.id) && (
                                         <div className="border-t px-5 py-4 space-y-4 animate-fade-in">
                                             {/* Symptoms Accordion */}
-                                            <div className="border rounded-xl overflow-hidden">
-                                                <button
-                                                    onClick={() => toggleAccordion(record.id, "symptoms")}
-                                                    className="w-full px-4 py-3 flex items-center justify-between bg-gray-50 hover:bg-gray-100 transition-colors"
-                                                >
-                                                    <span className="font-medium text-gray-700">
-                                                        📋 Triệu chứng ({record.symptoms.length})
-                                                    </span>
-                                                    <svg
-                                                        className={`w-4 h-4 text-gray-400 transition-transform ${isAccordionOpen(record.id, "symptoms") ? "rotate-180" : ""
-                                                            }`}
-                                                        fill="none"
-                                                        stroke="currentColor"
-                                                        viewBox="0 0 24 24"
-                                                    >
-                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                                                    </svg>
-                                                </button>
-                                                {isAccordionOpen(record.id, "symptoms") && (
-                                                    <div className="p-4 space-y-2">
-                                                        {record.symptoms.map((symptom, i) => (
-                                                            <div key={i} className="flex items-center gap-2">
-                                                                <span className="w-2 h-2 bg-blue-500 rounded-full" />
-                                                                <span className="text-gray-600">{symptom}</span>
-                                                            </div>
-                                                        ))}
-                                                    </div>
-                                                )}
-                                            </div>
-
-                                            {/* Prescriptions Accordion */}
-                                            <div className="border rounded-xl overflow-hidden">
-                                                <button
-                                                    onClick={() => toggleAccordion(record.id, "prescriptions")}
-                                                    className="w-full px-4 py-3 flex items-center justify-between bg-gray-50 hover:bg-gray-100 transition-colors"
-                                                >
-                                                    <span className="font-medium text-gray-700">
-                                                        💊 Đơn thuốc ({record.prescriptions.length})
-                                                    </span>
-                                                    <svg
-                                                        className={`w-4 h-4 text-gray-400 transition-transform ${isAccordionOpen(record.id, "prescriptions") ? "rotate-180" : ""
-                                                            }`}
-                                                        fill="none"
-                                                        stroke="currentColor"
-                                                        viewBox="0 0 24 24"
-                                                    >
-                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                                                    </svg>
-                                                </button>
-                                                {isAccordionOpen(record.id, "prescriptions") && (
-                                                    <div className="p-4 space-y-3">
-                                                        {record.prescriptions.map((med, i) => (
-                                                            <div key={i} className="p-3 bg-orange-50 rounded-lg">
-                                                                <p className="font-semibold text-gray-800">{med.name}</p>
-                                                                <div className="flex gap-4 mt-1 text-sm text-gray-600">
-                                                                    <span>📏 {med.dosage}</span>
-                                                                    <span>⏱️ {med.duration}</span>
-                                                                </div>
-                                                            </div>
-                                                        ))}
-                                                    </div>
-                                                )}
-                                            </div>
-
-                                            {/* Tests Accordion */}
-                                            {record.tests.length > 0 && (
+                                            {(record.symptoms?.length || 0) > 0 && (
                                                 <div className="border rounded-xl overflow-hidden">
                                                     <button
-                                                        onClick={() => toggleAccordion(record.id, "tests")}
+                                                        onClick={() => toggleAccordion((record._id || record.id), "symptoms")}
+                                                        className="w-full px-4 py-3 flex items-center justify-between bg-gray-50 hover:bg-gray-100 transition-colors"
+                                                    >
+                                                        <span className="font-medium text-gray-700">
+                                                            📋 Triệu chứng ({record.symptoms.length})
+                                                        </span>
+                                                        <svg
+                                                            className={`w-4 h-4 text-gray-400 transition-transform ${isAccordionOpen((record._id || record.id), "symptoms") ? "rotate-180" : ""}`}
+                                                            fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                                                        >
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                                        </svg>
+                                                    </button>
+                                                    {isAccordionOpen((record._id || record.id), "symptoms") && (
+                                                        <div className="p-4 space-y-2">
+                                                            {record.symptoms.map((symptom, i) => (
+                                                                <div key={i} className="flex items-center gap-2">
+                                                                    <span className="w-2 h-2 bg-blue-500 rounded-full" />
+                                                                    <span className="text-gray-600">{symptom}</span>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            )}
+
+                                            {/* Prescriptions Accordion */}
+                                            {(record.prescriptions?.length || 0) > 0 && (
+                                                <div className="border rounded-xl overflow-hidden">
+                                                    <button
+                                                        onClick={() => toggleAccordion((record._id || record.id), "prescriptions")}
+                                                        className="w-full px-4 py-3 flex items-center justify-between bg-gray-50 hover:bg-gray-100 transition-colors"
+                                                    >
+                                                        <span className="font-medium text-gray-700">
+                                                            💊 Đơn thuốc ({record.prescriptions.length})
+                                                        </span>
+                                                        <svg
+                                                            className={`w-4 h-4 text-gray-400 transition-transform ${isAccordionOpen((record._id || record.id), "prescriptions") ? "rotate-180" : ""}`}
+                                                            fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                                                        >
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                                        </svg>
+                                                    </button>
+                                                    {isAccordionOpen((record._id || record.id), "prescriptions") && (
+                                                        <div className="p-4 space-y-3">
+                                                            {record.prescriptions.map((med, i) => (
+                                                                <div key={i} className="p-3 bg-orange-50 rounded-lg">
+                                                                    <p className="font-semibold text-gray-800">{med.name}</p>
+                                                                    <div className="flex gap-4 mt-1 text-sm text-gray-600">
+                                                                        <span>📏 {med.dosage}</span>
+                                                                        <span>⏱️ {med.duration}</span>
+                                                                    </div>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            )}
+
+                                            {/* Tests Accordion */}
+                                            {(record.tests?.length || 0) > 0 && (
+                                                <div className="border rounded-xl overflow-hidden">
+                                                    <button
+                                                        onClick={() => toggleAccordion((record._id || record.id), "tests")}
                                                         className="w-full px-4 py-3 flex items-center justify-between bg-gray-50 hover:bg-gray-100 transition-colors"
                                                     >
                                                         <span className="font-medium text-gray-700">
                                                             🔬 Kết quả xét nghiệm ({record.tests.length})
                                                         </span>
                                                         <svg
-                                                            className={`w-4 h-4 text-gray-400 transition-transform ${isAccordionOpen(record.id, "tests") ? "rotate-180" : ""
-                                                                }`}
-                                                            fill="none"
-                                                            stroke="currentColor"
-                                                            viewBox="0 0 24 24"
+                                                            className={`w-4 h-4 text-gray-400 transition-transform ${isAccordionOpen((record._id || record.id), "tests") ? "rotate-180" : ""}`}
+                                                            fill="none" stroke="currentColor" viewBox="0 0 24 24"
                                                         >
                                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                                                         </svg>
                                                     </button>
-                                                    {isAccordionOpen(record.id, "tests") && (
+                                                    {isAccordionOpen((record._id || record.id), "tests") && (
                                                         <div className="p-4 space-y-3">
                                                             {record.tests.map((test, i) => (
                                                                 <div key={i} className="flex items-center justify-between p-3 bg-emerald-50 rounded-lg">
@@ -269,12 +487,6 @@ export default function MedicalRecordsPage() {
                                                                         <p className="font-semibold text-gray-800">{test.name}</p>
                                                                         <p className="text-sm text-gray-600">{test.result}</p>
                                                                     </div>
-                                                                    <button className="p-2 text-blue-600 hover:bg-blue-100 rounded-lg transition-colors">
-                                                                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                                                                        </svg>
-                                                                    </button>
                                                                 </div>
                                                             ))}
                                                         </div>
@@ -297,16 +509,6 @@ export default function MedicalRecordsPage() {
                                                     className="flex-1 py-3 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700 transition-colors"
                                                 >
                                                     Xem đơn thuốc
-                                                </button>
-                                                <button className="px-4 py-3 border-2 border-gray-200 text-gray-600 rounded-xl hover:bg-gray-50 transition-colors">
-                                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                                                    </svg>
-                                                </button>
-                                                <button className="px-4 py-3 border-2 border-gray-200 text-gray-600 rounded-xl hover:bg-gray-50 transition-colors">
-                                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
-                                                    </svg>
                                                 </button>
                                             </div>
                                         </div>
