@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useLocation } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
 import { getPatientsApi } from "../services/user.api";
 
@@ -71,6 +72,7 @@ const EMPTY_MED = { name: "", type: "tablet", dosage: { morning: 0, noon: 0, eve
 
 export default function PrescriptionsPage() {
     const { user } = useAuth();
+    const location = useLocation();
     const [expandedId, setExpandedId] = useState(null);
     const [showForm, setShowForm] = useState(false);
 
@@ -88,10 +90,19 @@ export default function PrescriptionsPage() {
     useEffect(() => {
         if (isDoctor) {
             getPatientsApi()
-                .then((data) => setPatientsList(data.patients || []))
+                .then((data) => {
+                    setPatientsList(data.patients || []);
+                    // Check if we came from Appointments with a patient
+                    if (location.state?.patientId) {
+                        setFormPatientId(location.state.patientId);
+                        setShowForm(true);
+                        // Optional: clear state to prevent re-opening on refresh
+                        window.history.replaceState({}, document.title);
+                    }
+                })
                 .catch(() => setPatientsList([]));
         }
-    }, [isDoctor]);
+    }, [isDoctor, location.state]);
 
     // Read from localStorage
     const [savedPrescriptions, setSavedPrescriptions] = useState([]);

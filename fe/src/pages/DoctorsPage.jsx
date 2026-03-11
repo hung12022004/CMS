@@ -16,7 +16,6 @@ const specialties = [
 
 const filterChips = [
     { id: "all", label: "Tất cả", icon: "🏥" },
-    { id: "nearby", label: "Gần bạn", icon: "📍" },
     { id: "top-rated", label: "Đánh giá cao", icon: "⭐" },
     { id: "available", label: "Còn lịch", icon: "✅" },
 ];

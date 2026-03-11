@@ -20,9 +20,8 @@ const NAV_BY_ROLE = {
   ],
   doctor: [
     { label: "Dashboard", path: "/dashboard" },
-    { label: "Đặt lịch khám", path: "/doctors" },
     { label: "Bệnh nhân hẹn khám", path: "/appointments" },
-    { label: "Hồ sơ bệnh án", path: "/medical-records" },
+    { label: "Danh sách bệnh nhân", path: "/medical-records" },
     { label: "Đơn thuốc", path: "/prescriptions" },
   ],
   nurse: [
@@ -31,7 +30,6 @@ const NAV_BY_ROLE = {
     { label: "Lịch hẹn", path: "/appointments" },
   ],
   admin: [
-    { label: "Dashboard", path: "/dashboard" },
     { label: "Quản lý user", path: "/admin/users" },
   ],
 };
