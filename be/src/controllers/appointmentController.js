@@ -64,21 +64,32 @@ exports.updateStatus = async (req, res) => {
     try {
         const { id } = req.params;
         const { status } = req.body;
+        const { role, id: userId } = req.user;
 
         const validStatuses = ["pending", "confirmed", "completed", "cancelled"];
         if (!status || !validStatuses.includes(status)) {
             return res.status(400).json({ message: "Status không hợp lệ" });
         }
 
-        const appointment = await Appointment.findByIdAndUpdate(
-            id,
-            { status },
-            { new: true }
-        );
-
+        const appointment = await Appointment.findById(id);
         if (!appointment) {
             return res.status(404).json({ message: "Không tìm thấy lịch hẹn" });
         }
+
+        // Security checks
+        if (role === "patient") {
+            // Patients can only cancel
+            if (status !== "cancelled") {
+                return res.status(403).json({ message: "Bạn chỉ có quyền hủy lịch hẹn" });
+            }
+            // Patients can only cancel their own appointments
+            if (appointment.patientId.toString() !== userId) {
+                return res.status(403).json({ message: "Bạn không có quyền thực hiện hành động này" });
+            }
+        }
+
+        appointment.status = status;
+        await appointment.save();
 
         return res.status(200).json({
             message: "Cập nhật trạng thái thành công",

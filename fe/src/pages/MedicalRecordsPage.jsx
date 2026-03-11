@@ -78,6 +78,8 @@ export default function MedicalRecordsPage() {
     const [expandedId, setExpandedId] = useState(null);
     const [activeAccordion, setActiveAccordion] = useState({});
     const [showForm, setShowForm] = useState(false);
+    const [viewMode, setViewMode] = useState("list"); // 'list' or 'detail'
+    const [selectedPatientId, setSelectedPatientId] = useState(null);
 
     // Form state
     const [formPatientId, setFormPatientId] = useState("");
@@ -208,20 +210,33 @@ export default function MedicalRecordsPage() {
                 <div className="mb-6 flex items-center justify-between">
                     <div>
                         <h1 className="text-2xl font-bold text-gray-800 mb-2">
-                            {isStaff ? "Hồ sơ bệnh án bệnh nhân" : "Hồ sơ bệnh án"}
+                            {isDoctor ? (viewMode === "list" ? "Danh sách bệnh nhân" : "Hồ sơ bệnh án") : (isStaff ? "Hồ sơ bệnh án bệnh nhân" : "Hồ sơ bệnh án")}
                         </h1>
                         <p className="text-gray-500">
-                            {isStaff ? "Quản lý và kê hồ sơ cho bệnh nhân" : "Lịch sử khám và kết quả điều trị"}
+                            {isDoctor ? (viewMode === "list" ? "Danh sách các bệnh nhân đã và đang điều trị" : `Lịch sử khám của bệnh nhân: ${patientsList.find(p => p._id === selectedPatientId)?.name || ""}`) : (isStaff ? "Quản lý và kê hồ sơ cho bệnh nhân" : "Lịch sử khám và kết quả điều trị")}
                         </p>
                     </div>
-                    {isDoctor && (
-                        <button
-                            onClick={() => setShowForm(!showForm)}
-                            className="px-5 py-2.5 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700 transition-colors flex items-center gap-2 shadow-lg"
-                        >
-                            {showForm ? "✕ Đóng" : "+ Tạo hồ sơ mới"}
-                        </button>
-                    )}
+                    <div className="flex gap-3">
+                        {isDoctor && viewMode === "detail" && (
+                            <button
+                                onClick={() => {
+                                    setViewMode("list");
+                                    setSelectedPatientId(null);
+                                }}
+                                className="px-4 py-2 bg-gray-100 text-gray-600 rounded-xl font-semibold hover:bg-gray-200 transition-colors flex items-center gap-2"
+                            >
+                                ← Quay lại
+                            </button>
+                        )}
+                        {isDoctor && (
+                            <button
+                                onClick={() => setShowForm(!showForm)}
+                                className="px-5 py-2.5 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700 transition-colors flex items-center gap-2 shadow-lg"
+                            >
+                                {showForm ? "✕ Đóng" : "+ Tạo hồ sơ mới"}
+                            </button>
+                        )}
+                    </div>
                 </div>
 
                 {/* ========== NEW RECORD FORM ========== */}
@@ -330,194 +345,248 @@ export default function MedicalRecordsPage() {
                     </div>
                 )}
 
-                {/* Timeline */}
-                <div className="relative">
-                    {/* Timeline Line */}
-                    <div className="absolute left-6 top-0 bottom-0 w-0.5 bg-blue-200" />
-
-                    {/* Records */}
-                    <div className="space-y-6">
-                        {records.map((record, index) => (
-                            <div
-                                key={record._id || record.id}
-                                className="relative pl-16 animate-fade-in"
-                                style={{ animationDelay: `${index * 0.1}s` }}
-                            >
-                                {/* Timeline Dot */}
-                                <div className="absolute left-4 top-6 w-5 h-5 bg-blue-600 rounded-full border-4 border-white shadow" />
-
-                                {/* Record Card */}
-                                <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
-                                    {/* Header */}
-                                    <div
-                                        className="p-5 cursor-pointer hover:bg-gray-50 transition-colors"
-                                        onClick={() => setExpandedId(expandedId === (record._id || record.id) ? null : (record._id || record.id))}
-                                    >
-                                        <div className="flex items-center justify-between mb-3">
-                                            <span className="text-sm text-blue-600 font-semibold">
-                                                {formatDate(record.date)}
-                                            </span>
-                                            <svg
-                                                className={`w-5 h-5 text-gray-400 transition-transform ${expandedId === (record._id || record.id) ? "rotate-180" : ""}`}
-                                                fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                {/* ========== PATIENT LIST VIEW (Doctor Only) ========== */}
+                {isDoctor && viewMode === "list" && !showForm && (
+                    <div className="space-y-4 animate-fade-in">
+                        <div className="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden">
+                            <ul className="divide-y divide-gray-100">
+                                {patientsList.length > 0 ? (
+                                    patientsList.map((patient) => {
+                                        // Count records for this patient
+                                        const patientRecordsCount = records.filter(r => r.patientId?._id === patient._id || r.patientId === patient._id).length;
+                                        return (
+                                            <li
+                                                key={patient._id}
+                                                className="p-4 hover:bg-blue-50/50 cursor-pointer transition-colors group"
+                                                onClick={() => {
+                                                    setSelectedPatientId(patient._id);
+                                                    setViewMode("detail");
+                                                }}
                                             >
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                                            </svg>
-                                        </div>
+                                                <div className="flex items-center justify-between">
+                                                    <div className="flex items-center gap-4">
+                                                        <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white text-lg font-bold shadow-sm">
+                                                            {patient.name[0]}
+                                                        </div>
+                                                        <div>
+                                                            <h3 className="font-bold text-gray-800 group-hover:text-blue-600 transition-colors">
+                                                                {patient.name}
+                                                            </h3>
+                                                            <p className="text-sm text-gray-500">
+                                                                {patient.email} {patient.phoneNumber && `• ${patient.phoneNumber}`}
+                                                            </p>
+                                                        </div>
+                                                    </div>
+                                                    <div className="text-right">
+                                                        <span className="inline-block px-3 py-1 bg-blue-50 text-blue-600 text-xs font-semibold rounded-full border border-blue-100">
+                                                            {patientRecordsCount} hồ sơ
+                                                        </span>
+                                                        <p className="text-[10px] text-gray-400 mt-1 uppercase tracking-wider font-semibold">Xem chi tiết →</p>
+                                                    </div>
+                                                </div>
+                                            </li>
+                                        );
+                                    })
+                                ) : (
+                                    <li className="p-8 text-center text-gray-500">Chưa có bệnh nhân nào</li>
+                                )}
+                            </ul>
+                        </div>
+                    </div>
+                )}
 
-                                        <div className="flex items-center gap-3">
-                                            {(record.patientId?.avatarUrl || record.patient?.avatar) ? (
-                                                <img
-                                                    src={isStaff ? (record.patientId?.avatarUrl || record.patient?.avatar) : (record.doctorId?.avatarUrl || record.doctor?.avatar)}
-                                                    alt={isStaff ? (record.patientId?.name || record.patient?.name) : (record.doctorId?.name || record.doctor?.name)}
-                                                    className="w-12 h-12 rounded-xl object-cover"
-                                                />
-                                            ) : (
-                                                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white text-lg font-bold">
-                                                    {(record.patientId?.name || record.patient?.name || "?")[0]}
+                {/* Timeline */}
+                {(!isDoctor || viewMode === "detail" || showForm) && (
+                    <div className="relative">
+                        {/* Timeline Line */}
+                        <div className="absolute left-6 top-0 bottom-0 w-0.5 bg-blue-200" />
+
+                        {/* Records */}
+                        <div className="space-y-6">
+                            {records
+                                .filter(r => !selectedPatientId || (r.patientId?._id === selectedPatientId || r.patientId === selectedPatientId))
+                                .map((record, index) => (
+                                    <div
+                                        key={record._id || record.id}
+                                        className="relative pl-16 animate-fade-in"
+                                        style={{ animationDelay: `${index * 0.1}s` }}
+                                    >
+                                        {/* Timeline Dot */}
+                                        <div className="absolute left-4 top-6 w-5 h-5 bg-blue-600 rounded-full border-4 border-white shadow" />
+
+                                        {/* Record Card */}
+                                        <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
+                                            {/* Header */}
+                                            <div
+                                                className="p-5 cursor-pointer hover:bg-gray-50 transition-colors"
+                                                onClick={() => setExpandedId(expandedId === (record._id || record.id) ? null : (record._id || record.id))}
+                                            >
+                                                <div className="flex items-center justify-between mb-3">
+                                                    <span className="text-sm text-blue-600 font-semibold">
+                                                        {formatDate(record.date)}
+                                                    </span>
+                                                    <svg
+                                                        className={`w-5 h-5 text-gray-400 transition-transform ${expandedId === (record._id || record.id) ? "rotate-180" : ""}`}
+                                                        fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                                                    >
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                                    </svg>
+                                                </div>
+
+                                                <div className="flex items-center gap-3">
+                                                    {(record.patientId?.avatarUrl || record.patient?.avatar) ? (
+                                                        <img
+                                                            src={isStaff ? (record.patientId?.avatarUrl || record.patient?.avatar) : (record.doctorId?.avatarUrl || record.doctor?.avatar)}
+                                                            alt={isStaff ? (record.patientId?.name || record.patient?.name) : (record.doctorId?.name || record.doctor?.name)}
+                                                            className="w-12 h-12 rounded-xl object-cover"
+                                                        />
+                                                    ) : (
+                                                        <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white text-lg font-bold">
+                                                            {(record.patientId?.name || record.patient?.name || "?")[0]}
+                                                        </div>
+                                                    )}
+                                                    <div>
+                                                        <h3 className="font-bold text-gray-800">
+                                                            {isStaff ? (record.patientId?.name || record.patient?.name) : (record.doctorId?.name || record.doctor || "Bác sĩ")}
+                                                        </h3>
+                                                        <p className="text-sm text-gray-500">
+                                                            {isStaff
+                                                                ? ((record.patientId?.gender || record.patient?.gender) && (record.patientId?.age || record.patient?.age) ? `${record.patientId?.gender || record.patient?.gender}, ${record.patientId?.age || record.patient?.age} tuổi` : "Bệnh nhân")
+                                                                : ""
+                                                            }
+                                                        </p>
+                                                    </div>
+                                                </div>
+
+                                                <div className="mt-3 p-3 bg-blue-50 rounded-xl">
+                                                    <p className="text-sm text-gray-500">Chẩn đoán</p>
+                                                    <p className="font-semibold text-gray-800">{record.diagnosis}</p>
+                                                </div>
+                                            </div>
+
+                                            {/* Expanded Content */}
+                                            {expandedId === (record._id || record.id) && (
+                                                <div className="border-t px-5 py-4 space-y-4 animate-fade-in">
+                                                    {/* Symptoms Accordion */}
+                                                    {(record.symptoms?.length || 0) > 0 && (
+                                                        <div className="border rounded-xl overflow-hidden">
+                                                            <button
+                                                                onClick={() => toggleAccordion((record._id || record.id), "symptoms")}
+                                                                className="w-full px-4 py-3 flex items-center justify-between bg-gray-50 hover:bg-gray-100 transition-colors"
+                                                            >
+                                                                <span className="font-medium text-gray-700">
+                                                                    📋 Triệu chứng ({record.symptoms.length})
+                                                                </span>
+                                                                <svg
+                                                                    className={`w-4 h-4 text-gray-400 transition-transform ${isAccordionOpen((record._id || record.id), "symptoms") ? "rotate-180" : ""}`}
+                                                                    fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                                                                >
+                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                                                </svg>
+                                                            </button>
+                                                            {isAccordionOpen((record._id || record.id), "symptoms") && (
+                                                                <div className="p-4 space-y-2">
+                                                                    {record.symptoms.map((symptom, i) => (
+                                                                        <div key={i} className="flex items-center gap-2">
+                                                                            <span className="w-2 h-2 bg-blue-500 rounded-full" />
+                                                                            <span className="text-gray-600">{symptom}</span>
+                                                                        </div>
+                                                                    ))}
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    )}
+
+                                                    {/* Prescriptions Accordion */}
+                                                    {(record.prescriptions?.length || 0) > 0 && (
+                                                        <div className="border rounded-xl overflow-hidden">
+                                                            <button
+                                                                onClick={() => toggleAccordion((record._id || record.id), "prescriptions")}
+                                                                className="w-full px-4 py-3 flex items-center justify-between bg-gray-50 hover:bg-gray-100 transition-colors"
+                                                            >
+                                                                <span className="font-medium text-gray-700">
+                                                                    💊 Đơn thuốc ({record.prescriptions.length})
+                                                                </span>
+                                                                <svg
+                                                                    className={`w-4 h-4 text-gray-400 transition-transform ${isAccordionOpen((record._id || record.id), "prescriptions") ? "rotate-180" : ""}`}
+                                                                    fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                                                                >
+                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                                                </svg>
+                                                            </button>
+                                                            {isAccordionOpen((record._id || record.id), "prescriptions") && (
+                                                                <div className="p-4 space-y-3">
+                                                                    {record.prescriptions.map((med, i) => (
+                                                                        <div key={i} className="p-3 bg-orange-50 rounded-lg">
+                                                                            <p className="font-semibold text-gray-800">{med.name}</p>
+                                                                            <div className="flex gap-4 mt-1 text-sm text-gray-600">
+                                                                                <span>📏 {med.dosage}</span>
+                                                                                <span>⏱️ {med.duration}</span>
+                                                                            </div>
+                                                                        </div>
+                                                                    ))}
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    )}
+
+                                                    {/* Tests Accordion */}
+                                                    {(record.tests?.length || 0) > 0 && (
+                                                        <div className="border rounded-xl overflow-hidden">
+                                                            <button
+                                                                onClick={() => toggleAccordion((record._id || record.id), "tests")}
+                                                                className="w-full px-4 py-3 flex items-center justify-between bg-gray-50 hover:bg-gray-100 transition-colors"
+                                                            >
+                                                                <span className="font-medium text-gray-700">
+                                                                    🔬 Kết quả xét nghiệm ({record.tests.length})
+                                                                </span>
+                                                                <svg
+                                                                    className={`w-4 h-4 text-gray-400 transition-transform ${isAccordionOpen((record._id || record.id), "tests") ? "rotate-180" : ""}`}
+                                                                    fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                                                                >
+                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                                                </svg>
+                                                            </button>
+                                                            {isAccordionOpen((record._id || record.id), "tests") && (
+                                                                <div className="p-4 space-y-3">
+                                                                    {record.tests.map((test, i) => (
+                                                                        <div key={i} className="flex items-center justify-between p-3 bg-emerald-50 rounded-lg">
+                                                                            <div>
+                                                                                <p className="font-semibold text-gray-800">{test.name}</p>
+                                                                                <p className="text-sm text-gray-600">{test.result}</p>
+                                                                            </div>
+                                                                        </div>
+                                                                    ))}
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    )}
+
+                                                    {/* Notes */}
+                                                    {record.notes && (
+                                                        <div className="p-4 bg-yellow-50 rounded-xl border border-yellow-200">
+                                                            <p className="text-sm font-medium text-yellow-800 mb-1">📝 Ghi chú bác sĩ</p>
+                                                            <p className="text-gray-700">{record.notes}</p>
+                                                        </div>
+                                                    )}
+
+                                                    {/* Actions */}
+                                                    <div className="flex gap-3 pt-2">
+                                                        <button
+                                                            onClick={() => navigate("/prescriptions")}
+                                                            className="flex-1 py-3 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700 transition-colors"
+                                                        >
+                                                            Xem đơn thuốc
+                                                        </button>
+                                                    </div>
                                                 </div>
                                             )}
-                                            <div>
-                                                <h3 className="font-bold text-gray-800">
-                                                    {isStaff ? (record.patientId?.name || record.patient?.name) : (record.doctorId?.name || record.doctor || "Bác sĩ")}
-                                                </h3>
-                                                <p className="text-sm text-gray-500">
-                                                    {isStaff
-                                                        ? ((record.patientId?.gender || record.patient?.gender) && (record.patientId?.age || record.patient?.age) ? `${record.patientId?.gender || record.patient?.gender}, ${record.patientId?.age || record.patient?.age} tuổi` : "Bệnh nhân")
-                                                        : ""
-                                                    }
-                                                </p>
-                                            </div>
-                                        </div>
-
-                                        <div className="mt-3 p-3 bg-blue-50 rounded-xl">
-                                            <p className="text-sm text-gray-500">Chẩn đoán</p>
-                                            <p className="font-semibold text-gray-800">{record.diagnosis}</p>
                                         </div>
                                     </div>
-
-                                    {/* Expanded Content */}
-                                    {expandedId === (record._id || record.id) && (
-                                        <div className="border-t px-5 py-4 space-y-4 animate-fade-in">
-                                            {/* Symptoms Accordion */}
-                                            {(record.symptoms?.length || 0) > 0 && (
-                                                <div className="border rounded-xl overflow-hidden">
-                                                    <button
-                                                        onClick={() => toggleAccordion((record._id || record.id), "symptoms")}
-                                                        className="w-full px-4 py-3 flex items-center justify-between bg-gray-50 hover:bg-gray-100 transition-colors"
-                                                    >
-                                                        <span className="font-medium text-gray-700">
-                                                            📋 Triệu chứng ({record.symptoms.length})
-                                                        </span>
-                                                        <svg
-                                                            className={`w-4 h-4 text-gray-400 transition-transform ${isAccordionOpen((record._id || record.id), "symptoms") ? "rotate-180" : ""}`}
-                                                            fill="none" stroke="currentColor" viewBox="0 0 24 24"
-                                                        >
-                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                                                        </svg>
-                                                    </button>
-                                                    {isAccordionOpen((record._id || record.id), "symptoms") && (
-                                                        <div className="p-4 space-y-2">
-                                                            {record.symptoms.map((symptom, i) => (
-                                                                <div key={i} className="flex items-center gap-2">
-                                                                    <span className="w-2 h-2 bg-blue-500 rounded-full" />
-                                                                    <span className="text-gray-600">{symptom}</span>
-                                                                </div>
-                                                            ))}
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            )}
-
-                                            {/* Prescriptions Accordion */}
-                                            {(record.prescriptions?.length || 0) > 0 && (
-                                                <div className="border rounded-xl overflow-hidden">
-                                                    <button
-                                                        onClick={() => toggleAccordion((record._id || record.id), "prescriptions")}
-                                                        className="w-full px-4 py-3 flex items-center justify-between bg-gray-50 hover:bg-gray-100 transition-colors"
-                                                    >
-                                                        <span className="font-medium text-gray-700">
-                                                            💊 Đơn thuốc ({record.prescriptions.length})
-                                                        </span>
-                                                        <svg
-                                                            className={`w-4 h-4 text-gray-400 transition-transform ${isAccordionOpen((record._id || record.id), "prescriptions") ? "rotate-180" : ""}`}
-                                                            fill="none" stroke="currentColor" viewBox="0 0 24 24"
-                                                        >
-                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                                                        </svg>
-                                                    </button>
-                                                    {isAccordionOpen((record._id || record.id), "prescriptions") && (
-                                                        <div className="p-4 space-y-3">
-                                                            {record.prescriptions.map((med, i) => (
-                                                                <div key={i} className="p-3 bg-orange-50 rounded-lg">
-                                                                    <p className="font-semibold text-gray-800">{med.name}</p>
-                                                                    <div className="flex gap-4 mt-1 text-sm text-gray-600">
-                                                                        <span>📏 {med.dosage}</span>
-                                                                        <span>⏱️ {med.duration}</span>
-                                                                    </div>
-                                                                </div>
-                                                            ))}
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            )}
-
-                                            {/* Tests Accordion */}
-                                            {(record.tests?.length || 0) > 0 && (
-                                                <div className="border rounded-xl overflow-hidden">
-                                                    <button
-                                                        onClick={() => toggleAccordion((record._id || record.id), "tests")}
-                                                        className="w-full px-4 py-3 flex items-center justify-between bg-gray-50 hover:bg-gray-100 transition-colors"
-                                                    >
-                                                        <span className="font-medium text-gray-700">
-                                                            🔬 Kết quả xét nghiệm ({record.tests.length})
-                                                        </span>
-                                                        <svg
-                                                            className={`w-4 h-4 text-gray-400 transition-transform ${isAccordionOpen((record._id || record.id), "tests") ? "rotate-180" : ""}`}
-                                                            fill="none" stroke="currentColor" viewBox="0 0 24 24"
-                                                        >
-                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                                                        </svg>
-                                                    </button>
-                                                    {isAccordionOpen((record._id || record.id), "tests") && (
-                                                        <div className="p-4 space-y-3">
-                                                            {record.tests.map((test, i) => (
-                                                                <div key={i} className="flex items-center justify-between p-3 bg-emerald-50 rounded-lg">
-                                                                    <div>
-                                                                        <p className="font-semibold text-gray-800">{test.name}</p>
-                                                                        <p className="text-sm text-gray-600">{test.result}</p>
-                                                                    </div>
-                                                                </div>
-                                                            ))}
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            )}
-
-                                            {/* Notes */}
-                                            {record.notes && (
-                                                <div className="p-4 bg-yellow-50 rounded-xl border border-yellow-200">
-                                                    <p className="text-sm font-medium text-yellow-800 mb-1">📝 Ghi chú bác sĩ</p>
-                                                    <p className="text-gray-700">{record.notes}</p>
-                                                </div>
-                                            )}
-
-                                            {/* Actions */}
-                                            <div className="flex gap-3 pt-2">
-                                                <button
-                                                    onClick={() => navigate("/prescriptions")}
-                                                    className="flex-1 py-3 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700 transition-colors"
-                                                >
-                                                    Xem đơn thuốc
-                                                </button>
-                                            </div>
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
-                        ))}
+                                ))}
+                        </div>
                     </div>
-                </div>
+                )}
 
                 {/* Empty State */}
                 {records.length === 0 && (

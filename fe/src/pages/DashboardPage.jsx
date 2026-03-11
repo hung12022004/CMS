@@ -99,6 +99,13 @@ export default function DashboardPage() {
         return () => clearInterval(timer);
     }, []);
 
+    // Redirect admin to AdminUsersPage
+    useEffect(() => {
+        if (user?.role === "admin") {
+            navigate("/admin/users", { replace: true });
+        }
+    }, [user, navigate]);
+
     // Helper function to get avatar URL
     const getAvatarSrc = () => {
         if (!user?.avatarUrl) {

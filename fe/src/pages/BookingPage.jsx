@@ -249,21 +249,40 @@ export default function BookingPage() {
                         Chọn giờ khám
                     </h2>
                     <div className="grid grid-cols-4 gap-2">
-                        {timeSlots.map((slot, index) => (
-                            <button
-                                key={index}
-                                onClick={() => slot.available && setSelectedTime(slot.time)}
-                                disabled={!slot.available}
-                                className={`py-3 px-2 rounded-xl text-sm font-medium transition-all duration-300 ${selectedTime === slot.time
-                                    ? "bg-blue-600 text-white shadow-lg"
-                                    : slot.available
-                                        ? "bg-white text-gray-700 hover:border-blue-300 border-2 border-gray-100 hover:bg-blue-50"
-                                        : "bg-gray-100 text-gray-400 cursor-not-allowed border-2 border-gray-100"
-                                    }`}
-                            >
-                                {slot.time}
-                            </button>
-                        ))}
+                        {(() => {
+                            const filteredSlots = timeSlots.filter((slot) => {
+                                if (!selectedDate.isToday) return true;
+                                const now = new Date();
+                                const currentHour = now.getHours();
+                                const currentMinute = now.getMinutes();
+                                const [slotHour, slotMinute] = slot.time.split(":").map(Number);
+                                return slotHour > currentHour || (slotHour === currentHour && slotMinute > currentMinute);
+                            });
+
+                            if (filteredSlots.length === 0) {
+                                return (
+                                    <div className="col-span-4 py-8 text-center bg-white rounded-2xl border-2 border-dashed border-gray-200">
+                                        <p className="text-gray-500 text-sm">Không có lịch khám khả dụng cho ngày này.</p>
+                                    </div>
+                                );
+                            }
+
+                            return filteredSlots.map((slot, index) => (
+                                <button
+                                    key={index}
+                                    onClick={() => slot.available && setSelectedTime(slot.time)}
+                                    disabled={!slot.available}
+                                    className={`py-3 px-2 rounded-xl text-sm font-medium transition-all duration-300 ${selectedTime === slot.time
+                                        ? "bg-blue-600 text-white shadow-lg"
+                                        : slot.available
+                                            ? "bg-white text-gray-700 hover:border-blue-300 border-2 border-gray-100 hover:bg-blue-50"
+                                            : "bg-gray-100 text-gray-400 cursor-not-allowed border-2 border-gray-100"
+                                        }`}
+                                >
+                                    {slot.time}
+                                </button>
+                            ));
+                        })()}
                     </div>
                     <div className="flex items-center gap-4 mt-3 text-xs text-gray-500">
                         <div className="flex items-center gap-2">
