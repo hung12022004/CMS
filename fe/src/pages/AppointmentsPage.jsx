@@ -147,7 +147,7 @@ export default function AppointmentsPage() {
 
     const handleReschedule = (appointment) => {
         // Navigate to booking page with doctorId and state indicating rescheduling
-        const doctorId = isStaffView ? appointment.doctorId?._id : appointment.doctorId?._id;
+        const doctorId = appointment.doctorId?._id || appointment.doctorId?.id || appointment.doctorId;
         if (!doctorId) {
             alert("Lỗi: Không tìm thấy thông tin bác sĩ.");
             return;
@@ -156,7 +156,7 @@ export default function AppointmentsPage() {
         navigate(`/booking/${doctorId}`, {
             state: {
                 isReschedule: true,
-                appointmentId: appointment._id,
+                appointmentId: appointment._id || appointment.id,
                 currentDate: appointment.date,
                 currentTime: appointment.time,
                 currentReason: appointment.reason,
@@ -234,10 +234,11 @@ export default function AppointmentsPage() {
                 {/* Appointments List */}
                 <div className="space-y-4">
                     {appointments.map((appointment, index) => {
-                        const status = statusConfig[appointment.status];
+                        const appointmentId = appointment._id || appointment.id;
+                        const status = statusConfig[appointment.status] || statusConfig.pending;
                         return (
                             <div
-                                key={appointment._id}
+                                key={appointmentId}
                                 className={`bg-white rounded-2xl overflow-hidden shadow-lg border-l-4 ${status.border} animate-fade-in`}
                                 style={{ animationDelay: `${index * 0.05}s` }}
                             >
@@ -325,7 +326,7 @@ export default function AppointmentsPage() {
                                             {/* Confirm Button - Nurse only, pending only */}
                                             {isStaffView && appointment.status === "pending" && (
                                                 <button
-                                                    onClick={() => handleConfirm(appointment._id)}
+                                                    onClick={() => handleConfirm(appointmentId)}
                                                     className="px-4 py-2 bg-emerald-500 text-white hover:bg-emerald-600 rounded-xl transition-colors font-medium"
                                                 >
                                                     ✅ Xác nhận
@@ -335,7 +336,7 @@ export default function AppointmentsPage() {
                                             {/* Create Medical Record - Doctor only, confirmed appointments */}
                                             {isStaffView && user?.role === "doctor" && appointment.status === "confirmed" && (
                                                 <button
-                                                    onClick={() => navigate("/medical-records", { state: { patientId: appointment.patientId?._id, patientName: appointment.patientId?.name, appointmentId: appointment._id } })}
+                                                    onClick={() => navigate("/medical-records", { state: { patientId: appointment.patientId?._id || appointment.patientId?.id, patientName: appointment.patientId?.name, appointmentId: appointmentId } })}
                                                     className="px-4 py-2 bg-blue-100 text-blue-700 hover:bg-blue-200 rounded-xl transition-colors font-medium"
                                                 >
                                                     📝 Tạo hồ sơ
@@ -352,7 +353,7 @@ export default function AppointmentsPage() {
 
                                             {/* Cancel Button */}
                                             <button
-                                                onClick={() => handleCancel(appointment._id)}
+                                                onClick={() => handleCancel(appointmentId)}
                                                 className="px-4 py-2 text-red-500 hover:bg-red-50 rounded-xl transition-colors"
                                             >
                                                 Hủy
