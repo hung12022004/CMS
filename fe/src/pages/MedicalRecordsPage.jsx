@@ -681,7 +681,7 @@ export default function MedicalRecordsPage() {
                                         </p>
                                         {(selectedRecord.prescriptions?.length > 0) ? (
                                             <>
-                                                <div className="space-y-2">
+                                                <div className="space-y-2 mb-3">
                                                     {selectedRecord.prescriptions.map((med, i) => (
                                                         <div key={i} className="p-3 bg-indigo-50 rounded-xl border border-indigo-100 flex justify-between items-center">
                                                             <div>
@@ -694,17 +694,25 @@ export default function MedicalRecordsPage() {
                                                         </div>
                                                     ))}
                                                 </div>
-                                                <div className="mt-3 text-right">
-                                                    <button
-                                                        onClick={() => navigate("/prescriptions")}
-                                                        className="text-sm text-blue-600 hover:text-blue-800 font-medium"
-                                                    >
-                                                        Quản lý đơn thuốc →
-                                                    </button>
-                                                </div>
                                             </>
                                         ) : (
-                                            <p className="text-sm text-gray-500 italic p-3 bg-gray-50 rounded-xl border border-gray-100">Không kê đơn thuốc</p>
+                                            <p className="text-sm text-gray-500 italic p-3 bg-gray-50 rounded-xl border border-gray-100 mb-3">Không kê đơn thuốc mới trong hồ sơ này</p>
+                                        )}
+                                        {!isDoctor && (
+                                            <div className="text-right">
+                                                <button
+                                                    onClick={() => navigate("/prescriptions", {
+                                                        state: {
+                                                            medicalRecordId: selectedRecord._id || selectedRecord.id,
+                                                            patientId: selectedRecord.patientId?._id || selectedRecord.patientId,
+                                                            patientName: selectedRecord.patientId?.name || selectedRecord.patient?.name || "Bệnh nhân"
+                                                        }
+                                                    })}
+                                                    className="text-sm text-blue-600 border border-blue-600 px-4 py-1.5 rounded-lg hover:bg-blue-50 font-medium transition-colors"
+                                                >
+                                                    {isStaff ? "Quản lý đơn thuốc →" : "Xem đơn thuốc →"}
+                                                </button>
+                                            </div>
                                         )}
                                     </div>
 
