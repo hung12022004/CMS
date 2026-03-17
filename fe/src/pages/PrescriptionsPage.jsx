@@ -125,7 +125,7 @@ export default function PrescriptionsPage() {
         return date.toLocaleDateString("vi-VN", { day: "numeric", month: "long", year: "numeric" });
     };
 
-    const getDosageDisplay = (dosage = {}) => {
+    const getDosageDisplay = (dosage) => {
         const parts = [];
         if (dosage.morning > 0) parts.push({ time: "Sáng", count: dosage.morning, icon: "🌅" });
         if (dosage.noon > 0) parts.push({ time: "Trưa", count: dosage.noon, icon: "☀️" });
@@ -141,58 +141,7 @@ export default function PrescriptionsPage() {
         return { text: "Còn thuốc", bg: "bg-emerald-100", textColor: "text-emerald-700", progress: pct };
     };
 
-    // --- Filter by Medical Record Context ---
-    const filterContext = location.state || {}; // { medicalRecordId, patientId, patientName }
-    const filteredPrescriptions = filterContext.patientName
-        ? prescriptions.filter(p => p.patient === filterContext.patientName || p.patientEmail === filterContext.patientName)
-        : prescriptions;
-
-    // --- Editing State (Doctor Only) ---
-    const [editingMedId, setEditingMedId] = useState(null);
-    const [editMedForm, setEditMedForm] = useState(null);
-
-    const startEditMed = (medicine) => {
-        setEditingMedId(medicine.id);
-        setEditMedForm({ ...medicine });
-    };
-
-    const cancelEditMed = () => {
-        setEditingMedId(null);
-        setEditMedForm(null);
-    };
-
-    const handleSaveEditMed = (prescriptionId) => {
-        if (!editMedForm) return;
-
-        // Update in localStorage
-        const stored = JSON.parse(localStorage.getItem("cms_prescriptions") || "[]");
-        const pIndex = stored.findIndex(p => p.id === prescriptionId);
-        
-        if (pIndex !== -1) {
-            const mIndex = stored[pIndex].medicines.findIndex(m => m.id === editingMedId);
-            if (mIndex !== -1) {
-                // Ensure quantity updates remaining intelligently
-                const qtyDiff = editMedForm.quantity - stored[pIndex].medicines[mIndex].quantity;
-                stored[pIndex].medicines[mIndex] = {
-                    ...editMedForm,
-                    remaining: Math.max(0, stored[pIndex].medicines[mIndex].remaining + qtyDiff)
-                };
-                
-                localStorage.setItem("cms_prescriptions", JSON.stringify(stored));
-                setSavedPrescriptions(stored);
-            }
-        }
-        
-        cancelEditMed();
-    };
-
-    const updateEditField = (field, value) => setEditMedForm(prev => ({ ...prev, [field]: value }));
-    const updateEditDosage = (timeKey, value) => {
-        setEditMedForm(prev => ({
-            ...prev,
-            dosage: { ...prev.dosage, [timeKey]: Number(value) || 0 }
-        }));
-    };
+    // Form handlers
     const addMedicine = () => setFormMeds([...formMeds, { ...EMPTY_MED }]);
 
     const removeMedicine = (idx) => {
@@ -256,15 +205,13 @@ export default function PrescriptionsPage() {
                 <div className="mb-6 flex items-center justify-between">
                     <div>
                         <h1 className="text-2xl font-bold text-gray-800 mb-2">
-                            {isStaff ? "Quản lý đơn thuốc" : "Đơn thuốc của tôi"}
+                            {isStaff ? "Kê đơn thuốc cho bệnh nhân" : "Đơn thuốc của tôi"}
                         </h1>
                         <p className="text-gray-500">
-                            {filterContext.patientName 
-                                ? `Đang xem đơn thuốc của: ${filterContext.patientName}` 
-                                : isStaff ? "Tất cả đơn thuốc" : "Theo dõi và quản lý đơn thuốc"}
+                            {isStaff ? "Quản lý đơn thuốc đã kê cho bệnh nhân" : "Theo dõi và quản lý đơn thuốc"}
                         </p>
                     </div>
-                    {isDoctor && !filterContext.patientName && (
+                    {isDoctor && (
                         <button
                             onClick={() => setShowForm(!showForm)}
                             className="px-5 py-2.5 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700 transition-colors flex items-center gap-2 shadow-lg"
@@ -445,9 +392,39 @@ export default function PrescriptionsPage() {
                     </div>
                 )}
 
+                {/* Quick Stats */}
+                <div className="grid grid-cols-2 gap-4 mb-6">
+                    <div className="bg-white rounded-2xl p-4 shadow-lg">
+                        <div className="flex items-center gap-3">
+                            <div className="w-12 h-12 bg-emerald-100 rounded-xl flex items-center justify-center">
+                                <span className="text-2xl">✅</span>
+                            </div>
+                            <div>
+                                <p className="text-gray-500 text-sm">Đang dùng</p>
+                                <p className="text-2xl font-bold text-gray-800">
+                                    {prescriptions.filter((p) => p.isActive).length}
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                    <div className="bg-white rounded-2xl p-4 shadow-lg">
+                        <div className="flex items-center gap-3">
+                            <div className="w-12 h-12 bg-gray-100 rounded-xl flex items-center justify-center">
+                                <span className="text-2xl">📋</span>
+                            </div>
+                            <div>
+                                <p className="text-gray-500 text-sm">Tổng đơn thuốc</p>
+                                <p className="text-2xl font-bold text-gray-800">
+                                    {prescriptions.length}
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 {/* Prescriptions List */}
                 <div className="space-y-4">
-                    {filteredPrescriptions.map((prescription, pIndex) => (
+                    {prescriptions.map((prescription, pIndex) => (
                         <div
                             key={prescription.id}
                             className="bg-white rounded-2xl shadow-lg overflow-hidden animate-fade-in"
@@ -493,120 +470,58 @@ export default function PrescriptionsPage() {
                             {/* Medicine Cards */}
                             {expandedId === prescription.id && (
                                 <div className="p-4 space-y-4 border-t animate-fade-in">
-                                    {prescription.medicines.map((medicine, mIdx) => {
-                                        const stockStatus = getStockStatus(medicine.remaining || 0, medicine.quantity || 1);
+                                    {prescription.medicines.map((medicine) => {
+                                        const stockStatus = getStockStatus(medicine.remaining, medicine.quantity);
                                         const dosageDisplay = getDosageDisplay(medicine.dosage);
-                                        const isEditing = editingMedId !== null && editingMedId === medicine.id && editMedForm !== null;
 
                                         return (
                                             <div
-                                                key={medicine.id || mIdx}
-                                                className={`border rounded-2xl p-4 transition-colors ${isEditing ? 'border-blue-400 bg-blue-50/30' : 'hover:border-blue-200'}`}
+                                                key={medicine.id}
+                                                className="border rounded-2xl p-4 hover:border-blue-200 transition-colors"
                                             >
                                                 {/* Medicine Header */}
-                                                <div className="flex items-start justify-between gap-3 mb-3">
-                                                    <div className="flex items-start gap-3">
-                                                        <div className="w-12 h-12 bg-blue-50 rounded-xl flex items-center justify-center text-2xl">
-                                                            {getMedicineIcon(medicine.type)}
-                                                        </div>
-                                                        <div className="flex-1">
-                                                            <h4 className="font-bold text-gray-800">{medicine.name}</h4>
-                                                            <p className="text-sm text-gray-500">{medicine.instructions}</p>
-                                                        </div>
+                                                <div className="flex items-start gap-3 mb-3">
+                                                    <div className="w-12 h-12 bg-blue-50 rounded-xl flex items-center justify-center text-2xl">
+                                                        {getMedicineIcon(medicine.type)}
                                                     </div>
-                                                    
-                                                    {isDoctor && !isEditing && (
-                                                        <button 
-                                                            onClick={() => startEditMed(medicine)}
-                                                            className="text-xs px-2.5 py-1.5 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 font-medium"
-                                                        >
-                                                            ✏️ Sửa
-                                                        </button>
-                                                    )}
+                                                    <div className="flex-1">
+                                                        <h4 className="font-bold text-gray-800">{medicine.name}</h4>
+                                                        <p className="text-sm text-gray-500">{medicine.instructions}</p>
+                                                    </div>
                                                 </div>
 
-                                                {isEditing ? (
-                                                    <div className="border-t border-blue-100 pt-3 mt-2">
-                                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-3">
-                                                            <div>
-                                                                <label className="text-xs text-gray-500 font-medium">Số lượng tổng</label>
-                                                                <input
-                                                                    type="number" min="1"
-                                                                    value={editMedForm.quantity || 0}
-                                                                    onChange={e => updateEditField("quantity", parseInt(e.target.value) || 0)}
-                                                                    className="w-full mt-1 px-3 py-1.5 border border-gray-200 rounded-lg text-sm focus:border-blue-500 focus:outline-none"
-                                                                />
-                                                            </div>
-                                                            <div>
-                                                                <label className="text-xs text-gray-500 font-medium">Thời gian (VD: 5 ngày)</label>
-                                                                <input
-                                                                    type="text"
-                                                                    value={editMedForm.duration || ""}
-                                                                    onChange={e => updateEditField("duration", e.target.value)}
-                                                                    className="w-full mt-1 px-3 py-1.5 border border-gray-200 rounded-lg text-sm focus:border-blue-500 focus:outline-none"
-                                                                />
-                                                            </div>
+                                                {/* Dosage Display */}
+                                                <div className="flex flex-wrap gap-2 mb-3">
+                                                    {dosageDisplay.map((d, i) => (
+                                                        <div key={i} className="flex items-center gap-2 px-3 py-2 bg-blue-50 rounded-xl">
+                                                            <span>{d.icon}</span>
+                                                            <span className="text-sm font-medium text-gray-700">
+                                                                {d.time}: {d.count} viên
+                                                            </span>
                                                         </div>
-                                                        
-                                                        <div className="mb-4">
-                                                            <label className="text-xs text-gray-500 font-medium mb-1 block">Liều dùng (viên/lần)</label>
-                                                            <div className="flex gap-3">
-                                                                <div className="flex items-center gap-2">
-                                                                    <span className="text-sm">🌅</span>
-                                                                    <input type="number" min="0" value={editMedForm.dosage?.morning || 0} onChange={e => updateEditDosage("morning", e.target.value)} className="w-16 px-2 py-1 border border-gray-200 rounded text-sm text-center focus:border-blue-500 focus:outline-none" />
-                                                                </div>
-                                                                <div className="flex items-center gap-2">
-                                                                    <span className="text-sm">☀️</span>
-                                                                    <input type="number" min="0" value={editMedForm.dosage?.noon || 0} onChange={e => updateEditDosage("noon", e.target.value)} className="w-16 px-2 py-1 border border-gray-200 rounded text-sm text-center focus:border-blue-500 focus:outline-none" />
-                                                                </div>
-                                                                <div className="flex items-center gap-2">
-                                                                    <span className="text-sm">🌙</span>
-                                                                    <input type="number" min="0" value={editMedForm.dosage?.evening || 0} onChange={e => updateEditDosage("evening", e.target.value)} className="w-16 px-2 py-1 border border-gray-200 rounded text-sm text-center focus:border-blue-500 focus:outline-none" />
-                                                                </div>
-                                                            </div>
-                                                        </div>
+                                                    ))}
+                                                </div>
 
-                                                        <div className="flex justify-end gap-2 text-sm">
-                                                            <button onClick={cancelEditMed} className="px-3 py-1.5 text-gray-500 hover:bg-gray-100 rounded-lg font-medium">Hủy</button>
-                                                            <button onClick={() => handleSaveEditMed(prescription.id)} className="px-4 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium">Lưu thay đổi</button>
+                                                {/* Stock Status */}
+                                                <div className="flex items-center justify-between">
+                                                    <div className="flex-1 mr-4">
+                                                        <div className="flex items-center justify-between mb-1">
+                                                            <span className={`text-xs font-medium ${stockStatus.textColor}`}>
+                                                                {stockStatus.text}
+                                                            </span>
+                                                            <span className="text-xs text-gray-500">
+                                                                {medicine.remaining}/{medicine.quantity} viên
+                                                            </span>
+                                                        </div>
+                                                        <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+                                                            <div
+                                                                className={`h-full rounded-full transition-all ${stockStatus.progress > 25 ? "bg-emerald-500" : stockStatus.progress > 0 ? "bg-amber-500" : "bg-gray-300"}`}
+                                                                style={{ width: `${stockStatus.progress}%` }}
+                                                            />
                                                         </div>
                                                     </div>
-                                                ) : (
-                                                    <>
-                                                        {/* Dosage Display */}
-                                                        <div className="flex flex-wrap gap-2 mb-3">
-                                                            {dosageDisplay.map((d, i) => (
-                                                                <div key={i} className="flex items-center gap-2 px-3 py-2 bg-blue-50 rounded-xl">
-                                                                    <span>{d.icon}</span>
-                                                                    <span className="text-sm font-medium text-gray-700">
-                                                                        {d.time}: {d.count} viên
-                                                                    </span>
-                                                                </div>
-                                                            ))}
-                                                        </div>
-
-                                                        {/* Stock Status */}
-                                                        <div className="flex items-center justify-between">
-                                                            <div className="flex-1 mr-4">
-                                                                <div className="flex items-center justify-between mb-1">
-                                                                    <span className={`text-xs font-medium ${stockStatus.textColor}`}>
-                                                                        {stockStatus.text}
-                                                                    </span>
-                                                                    <span className="text-xs text-gray-500">
-                                                                        {medicine.remaining}/{medicine.quantity} viên
-                                                                    </span>
-                                                                </div>
-                                                                <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-                                                                    <div
-                                                                        className={`h-full rounded-full transition-all ${stockStatus.progress > 25 ? "bg-emerald-500" : stockStatus.progress > 0 ? "bg-amber-500" : "bg-gray-300"}`}
-                                                                        style={{ width: `${stockStatus.progress}%` }}
-                                                                    />
-                                                                </div>
-                                                            </div>
-                                                            <span className="text-sm text-gray-500">{medicine.duration}</span>
-                                                        </div>
-                                                    </>
-                                                )}
+                                                    <span className="text-sm text-gray-500">{medicine.duration}</span>
+                                                </div>
                                             </div>
                                         );
                                     })}
@@ -617,7 +532,7 @@ export default function PrescriptionsPage() {
                 </div>
 
                 {/* Empty State */}
-                {filteredPrescriptions.length === 0 && (
+                {prescriptions.length === 0 && (
                     <div className="text-center py-12">
                         <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
                             <span className="text-4xl">💊</span>

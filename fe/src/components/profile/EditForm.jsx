@@ -47,22 +47,6 @@ const EditForm = ({ form, setForm, isEditing, onAvatarUpload }) => {
     return null;
   };
 
-  // Xác định thông tin Role hiển thị
-  const getRoleInfo = (r) => {
-    switch (r) {
-      case "admin":
-        return { label: "Admin", color: "bg-red-100 text-red-700 border-red-200" };
-      case "doctor":
-        return { label: "Bác sĩ", color: "bg-blue-100 text-blue-700 border-blue-200" };
-      case "patient":
-        return { label: "Bệnh nhân", color: "bg-green-100 text-green-700 border-green-200" };
-      case "staff":
-        return { label: "Nhân viên", color: "bg-purple-100 text-purple-700 border-purple-200" };
-      default:
-        return { label: r || "Khách", color: "bg-gray-100 text-gray-700 border-gray-200" };
-    }
-  };
-  const roleInfo = getRoleInfo(form.role);
 
   return (
     <div className="grid grid-cols-2 gap-6 text-gray-900">
