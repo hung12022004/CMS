@@ -83,7 +83,11 @@ exports.updateStatus = async (req, res) => {
                 return res.status(403).json({ message: "Bạn chỉ có quyền hủy lịch hẹn" });
             }
             // Patients can only cancel their own appointments
-            if (appointment.patientId.toString() !== userId) {
+                const aptPatientId = appointment.patientId?._id 
+                    ? appointment.patientId._id.toString() 
+                    : appointment.patientId?.toString();
+                    
+                if (aptPatientId !== userId?.toString()) {
                 return res.status(403).json({ message: "Bạn không có quyền thực hiện hành động này" });
             }
         }
