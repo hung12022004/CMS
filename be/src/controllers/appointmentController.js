@@ -1,5 +1,6 @@
 const Appointment = require("../models/Appointment");
 const User = require("../models/User");
+const { sendAppointmentConfirmationEmail } = require("../utils/mailer");
 
 // GET /api/v1/appointments
 exports.getAppointments = async (req, res) => {
@@ -94,6 +95,27 @@ exports.updateStatus = async (req, res) => {
 
         appointment.status = status;
         await appointment.save();
+
+        // Gửi email nếu trạng thái là confirmed (Bác sĩ chấp nhận)
+        if (status === "confirmed") {
+            try {
+                // Lấy thông tin bệnh nhân để gửi mail
+                const patient = await User.findById(appointment.patientId);
+                if (patient && patient.email) {
+                    await sendAppointmentConfirmationEmail({
+                        to: patient.email,
+                        patientName: patient.name || "Quý khách",
+                        date: appointment.date,
+                        time: appointment.time,
+                        type: appointment.type
+                    });
+                    console.log(`Email confirmed sent to ${patient.email}`);
+                }
+            } catch (mailError) {
+                console.error("Lỗi gửi email xác nhận:", mailError);
+                // Không return lỗi ở đây để tránh làm gián đoạn luồng chính của API
+            }
+        }
 
         return res.status(200).json({
             message: "Cập nhật trạng thái thành công",
