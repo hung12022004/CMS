@@ -160,3 +160,71 @@ exports.updateAppointment = async (req, res) => {
         return res.status(500).json({ message: "Server error" });
     }
 };
+
+// PATCH /api/v1/appointments/:id/review
+// Thêm đánh giá cho lịch hẹn đã hoàn thành
+exports.reviewAppointment = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { rating, review } = req.body;
+        const patientId = req.user.id;
+
+        if (!rating || rating < 1 || rating > 5) {
+            return res.status(400).json({ message: "Rating phải từ 1 đến 5 sao" });
+        }
+
+        const appointment = await Appointment.findById(id);
+        if (!appointment) {
+            return res.status(404).json({ message: "Không tìm thấy lịch hẹn" });
+        }
+
+        // Check if user is the patient of this appointment
+        const aptPatientId = appointment.patientId?._id 
+            ? appointment.patientId._id.toString() 
+            : appointment.patientId?.toString();
+            
+        if (aptPatientId !== patientId) {
+            return res.status(403).json({ message: "Bạn không có quyền đánh giá lịch hẹn này" });
+        }
+
+        if (appointment.status !== "completed") {
+            return res.status(400).json({ message: "Chỉ có thể đánh giá lịch hẹn đã hoàn thành" });
+        }
+
+        if (appointment.rating) {
+            return res.status(400).json({ message: "Lịch hẹn này đã được đánh giá" });
+        }
+
+        appointment.rating = rating;
+        if (review) appointment.review = review;
+        await appointment.save();
+
+        // Recalculate doctor's rating
+        const doctorId = appointment.doctorId?._id 
+            ? appointment.doctorId._id.toString() 
+            : appointment.doctorId?.toString();
+
+        const allDoctorAppointments = await Appointment.find({
+            doctorId,
+            rating: { $exists: true, $ne: null }
+        });
+
+        const totalRating = allDoctorAppointments.reduce((sum, apt) => sum + apt.rating, 0);
+        const reviewsCount = allDoctorAppointments.length;
+        const averageRating = reviewsCount > 0 ? (totalRating / reviewsCount).toFixed(1) : 0;
+
+        await User.findByIdAndUpdate(doctorId, {
+            rating: averageRating,
+            reviewsCount: reviewsCount
+        });
+
+        return res.status(200).json({
+            message: "Đánh giá thành công",
+            appointment,
+        });
+
+    } catch (err) {
+        console.error("reviewAppointment error:", err);
+        return res.status(500).json({ message: "Server error" });
+    }
+};

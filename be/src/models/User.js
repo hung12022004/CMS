@@ -67,6 +67,20 @@ const userSchema = new mongoose.Schema(
       type: String,
       default: "",
     },
+
+    // For doctors
+    specialty: {
+      type: String,
+      default: "Đa khoa",
+    },
+    rating: {
+      type: Number,
+      default: 0,
+    },
+    reviewsCount: {
+      type: Number,
+      default: 0,
+    },
   },
   { timestamps: true }
 );
