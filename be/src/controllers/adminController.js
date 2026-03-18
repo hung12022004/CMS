@@ -94,7 +94,7 @@ exports.updateUserRole = async (req, res) => {
  */
 exports.createStaffAccount = async (req, res) => {
     try {
-        const { name, email, password, role, gender } = req.body;
+        const { name, email, password, role, gender, specialty } = req.body;
 
         // Validate role
         const allowedRoles = ["doctor", "nurse"];
@@ -120,7 +120,7 @@ exports.createStaffAccount = async (req, res) => {
         const salt = await bcrypt.genSalt(10);
         const passwordHash = await bcrypt.hash(password, salt);
 
-        const user = await User.create({
+        const newUserObj = {
             name: name || "",
             email: email.toLowerCase(),
             passwordHash,
@@ -128,7 +128,13 @@ exports.createStaffAccount = async (req, res) => {
             gender: gender || "unknown",
             isVerified: true,
             authProvider: "local",
-        });
+        };
+
+        if (role === "doctor") {
+            newUserObj.specialty = specialty || "Đa khoa";
+        }
+
+        const user = await User.create(newUserObj);
 
         return res.status(201).json({
             message: `Đã tạo tài khoản ${role === "doctor" ? "bác sĩ" : "y tá"}: ${email}`,

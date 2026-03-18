@@ -1,5 +1,6 @@
 const bcrypt = require("bcryptjs");
 const User = require("../models/User");
+const Appointment = require("../models/Appointment");
 
 // GET /api/v1/users/me
 exports.getMe = async (req, res) => {
@@ -172,7 +173,7 @@ exports.getPatients = async (req, res) => {
 exports.getDoctors = async (req, res) => {
   try {
     const doctors = await User.find({ role: "doctor" })
-      .select("name email phoneNumber gender avatarUrl")
+      .select("name email phoneNumber gender avatarUrl rating reviewsCount")
       .sort({ name: 1 });
 
     return res.status(200).json({ doctors });
@@ -187,13 +188,34 @@ exports.getDoctors = async (req, res) => {
 exports.getDoctorById = async (req, res) => {
   try {
     const doctor = await User.findOne({ _id: req.params.id, role: "doctor" })
-      .select("name email phoneNumber gender avatarUrl");
+      .select("name email phoneNumber gender avatarUrl rating reviewsCount");
 
     if (!doctor) return res.status(404).json({ message: "Bác sĩ không tồn tại" });
 
     return res.status(200).json({ doctor });
   } catch (err) {
     console.error("getDoctorById error:", err);
+    return res.status(500).json({ message: "Server error" });
+  }
+};
+
+// GET /api/v1/users/doctors/:id/reviews
+// Lấy danh sách đánh giá của 1 bác sĩ
+exports.getDoctorReviews = async (req, res) => {
+  try {
+    const doctorId = req.params.id;
+
+    const reviews = await Appointment.find({
+      doctorId,
+      rating: { $exists: true, $ne: null }
+    })
+    .select("rating review date time patientId")
+    .populate("patientId", "name avatarUrl")
+    .sort({ date: -1, time: -1 });
+
+    return res.status(200).json({ reviews });
+  } catch (err) {
+    console.error("getDoctorReviews error:", err);
     return res.status(500).json({ message: "Server error" });
   }
 };
