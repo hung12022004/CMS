@@ -49,6 +49,16 @@ export const verifyOtpApi = async ({ email, otp }) => {
 };
 
 /**
+ * Resend OTP mã xác tMôthức
+ * POST /api/v1/auth/resend-otp
+ * body: { email }
+ */
+export const resendOtpApi = async ({ email }) => {
+  const res = await api.post("/auth/resend-otp", { email });
+  return res.data;
+};
+
+/**
  * Google Login
  * POST /api/v1/auth/google
  * body: { credential }

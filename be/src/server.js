@@ -18,7 +18,7 @@ app.use(morgan("dev"));
 // ✅ CORS (cho phép FE gọi từ Vite)
 app.use(
   cors({
-origin: ["http://localhost:5173", "http://localhost:5174"],
+    origin: ["http://localhost:5173"], // Vite default
     credentials: true, // để sau này nếu dùng cookie cũng ok
   })
 );

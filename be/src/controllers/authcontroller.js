@@ -318,6 +318,58 @@ exports.resetPassword = async (req, res) => {
 };
 
 /* =======================
+   RESEND OTP
+   POST /api/v1/auth/resend-otp
+   body: { email }
+======================= */
+exports.resendOtp = async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({ message: "email là bắt buộc" });
+    }
+
+    const normalizedEmail = String(email).toLowerCase().trim();
+
+    const user = await User.findOne({ email: normalizedEmail });
+
+    if (!user) {
+      // ❗ Không leak email tồn tại hay không
+      return res.status(200).json({
+        message: "Nếu email tồn tại, OTP mới đã được gửi",
+      });
+    }
+
+    if (user.isVerified) {
+      return res.status(400).json({
+        message: "Email này đã được xác thực",
+      });
+    }
+
+    // ✅ Xóa OTP cũ
+    await Otp.deleteMany({ email: normalizedEmail, type: "REGISTER" });
+
+    // ✅ Tạo OTP mới
+    const otp = await createOtp({
+      email: normalizedEmail,
+      type: "REGISTER",
+    });
+
+    // ✅ Gửi email
+    sendOtpEmail({ to: email, otp, type: "REGISTER" })
+      .catch(err => console.error("Send mail error:", err));
+
+    return res.status(200).json({
+      message: "OTP mới đã được gửi về email của bạn",
+    });
+  } catch (err) {
+    console.error("resend-otp error:", err);
+    return res.status(500).json({ message: "Server error" });
+  }
+};
+
+/* =======================
    GOOGLE LOGIN
    POST /api/v1/auth/google
    body: { credential }
