@@ -172,7 +172,7 @@ exports.getPatients = async (req, res) => {
 exports.getDoctors = async (req, res) => {
   try {
     const doctors = await User.find({ role: "doctor" })
-      .select("name email phoneNumber gender avatarUrl")
+      .select("name email phoneNumber gender avatarUrl rating reviewsCount specialty")
       .sort({ name: 1 });
 
     return res.status(200).json({ doctors });
@@ -187,13 +187,38 @@ exports.getDoctors = async (req, res) => {
 exports.getDoctorById = async (req, res) => {
   try {
     const doctor = await User.findOne({ _id: req.params.id, role: "doctor" })
-      .select("name email phoneNumber gender avatarUrl");
+      .select("name email phoneNumber gender avatarUrl rating reviewsCount specialty");
 
     if (!doctor) return res.status(404).json({ message: "Bác sĩ không tồn tại" });
 
     return res.status(200).json({ doctor });
   } catch (err) {
     console.error("getDoctorById error:", err);
+    return res.status(500).json({ message: "Server error" });
+  }
+};
+
+/**
+ * GET /api/v1/users/doctors/:id/reviews
+ * Lấy danh sách nhận xét của bác sĩ
+ */
+exports.getDoctorReviews = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Tìm các appointment đã hoàn thành và có đánh giá cho bác sĩ này
+    const appointments = await Appointment.find({
+      doctorId: id,
+      rating: { $exists: true },
+      status: "completed",
+    })
+      .select("rating review createdAt updatedAt patientId date time")
+      .populate("patientId", "name avatarUrl")
+      .sort({ date: -1, time: -1 });
+
+    return res.status(200).json({ reviews: appointments });
+  } catch (err) {
+    console.error("getDoctorReviews error:", err);
     return res.status(500).json({ message: "Server error" });
   }
 };

@@ -18,7 +18,7 @@ const AvatarCard = ({ user, isEditing, onEditToggle, saving }) => {
         <img
           src={getAvatarSrc()}
           alt="avatar"
-          className="w-24 h-24 rounded-full object-cover border-2 border-gray-300 shadow-sm"
+          className="w-16 h-16 rounded-full object-cover border-2 border-gray-300 shadow-sm"
         />
 
         <div>

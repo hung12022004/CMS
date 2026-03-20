@@ -78,3 +78,5 @@ export const getDoctorReviewsApi = async (id) => {
   const res = await api.get(`/users/doctors/${id}/reviews`);
   return res.data;
 };
+
+

@@ -26,6 +26,22 @@ const medicalRecordSchema = new mongoose.Schema(
             trim: true,
             default: "",
         },
+        vitals: {
+            weight: { type: String, default: "" },
+            bloodPressure: { type: String, default: "" },
+            heartRate: { type: String, default: "" },
+            temperature: { type: String, default: "" },
+        },
+        status: {
+            type: String,
+            default: "Hoàn thành",
+        },
+        prescriptions: [{
+            name: { type: String, required: true },
+            dosage: { type: String, default: "" },
+            duration: { type: String, default: "" },
+            instructions: { type: String, default: "" },
+        }],
         date: {
             type: String, // YYYY-MM-DD
             required: true,

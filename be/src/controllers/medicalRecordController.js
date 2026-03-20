@@ -29,13 +29,13 @@ exports.getMedicalRecords = async (req, res) => {
 // POST /api/v1/medical-records
 exports.createMedicalRecord = async (req, res) => {
     try {
-        const { patientId, diagnosis, symptoms, notes, date } = req.body;
+        const { patientId, diagnosis, symptoms, notes, date, vitals, status, prescriptions } = req.body;
         const doctorId = req.user.id;
-
+ 
         if (!patientId || !diagnosis || !date) {
             return res.status(400).json({ message: "Thiếu thông tin bắt buộc" });
         }
-
+ 
         const newRecord = await MedicalRecord.create({
             patientId,
             doctorId,
@@ -43,6 +43,9 @@ exports.createMedicalRecord = async (req, res) => {
             symptoms: symptoms || [],
             notes: notes || "",
             date,
+            vitals: vitals || {},
+            status: status || "Hoàn thành",
+            prescriptions: prescriptions || [],
         });
 
         return res.status(201).json({

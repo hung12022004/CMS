@@ -11,6 +11,7 @@ const userRoute = require("./route/userRoute");
 const adminRoute = require("./route/adminRoute");
 const appointmentRoute = require("./route/appointmentRoute");
 const medicalRecordRoute = require("./route/medicalRecordRoute");
+const reviewRoute = require("./route/reviewRoute");
 const app = express();
 
 app.use(morgan("dev"));
@@ -33,6 +34,7 @@ app.use("/api/v1/users", userRoute);
 app.use("/api/v1/admin", adminRoute);
 app.use("/api/v1/appointments", appointmentRoute);
 app.use("/api/v1/medical-records", medicalRecordRoute);
+app.use("/api/v1/reviews", reviewRoute);
 app.get("/", (req, res) => res.json({ ok: true, message: "API running" }));
 
 const PORT = process.env.PORT || 5000;

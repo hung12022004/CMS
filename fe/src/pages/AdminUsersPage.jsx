@@ -24,7 +24,8 @@ export default function AdminUsersPage() {
         email: "",
         password: "",
         role: "doctor",
-        gender: "unknown",
+        gender: "male",
+        specialty: "Đa khoa",
     });
     const [createLoading, setCreateLoading] = useState(false);
     const [createError, setCreateError] = useState("");
@@ -91,7 +92,7 @@ export default function AdminUsersPage() {
         try {
             const data = await createStaffAccountApi(createForm);
             setCreateSuccess(data.message);
-            setCreateForm({ name: "", email: "", password: "", role: "doctor", gender: "unknown" });
+            setCreateForm({ name: "", email: "", password: "", role: "doctor", gender: "male", specialty: "Đa khoa" });
             fetchUsers(); // Reload list
             setTimeout(() => {
                 setShowCreateModal(false);
@@ -383,7 +384,6 @@ export default function AdminUsersPage() {
                                     className="w-full px-4 py-3 bg-slate-800 border border-slate-700 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:border-blue-500"
                                 />
                             </div>
-
                             {/* Gender */}
                             <div>
                                 <label className="text-sm font-medium text-slate-300 mb-1 block">Giới tính</label>
@@ -398,6 +398,30 @@ export default function AdminUsersPage() {
                                     <option value="unknown">Không rõ</option>
                                 </select>
                             </div>
+
+                            {/* Specialty - Only for Doctors */}
+                            {createForm.role === "doctor" && (
+                                <div className="mb-4 animate-fade-in">
+                                    <label className="text-sm font-medium text-slate-300 mb-1 block">Chuyên khoa</label>
+                                    <select
+                                        value={createForm.specialty}
+                                        onChange={(e) => setCreateForm({ ...createForm, specialty: e.target.value })}
+                                        className="w-full px-4 py-3 bg-slate-800 border border-slate-700 rounded-xl text-white focus:outline-none focus:border-blue-500"
+                                    >
+                                        <option value="Đa khoa">Đa khoa</option>
+                                        <option value="Nội khoa">Nội khoa</option>
+                                        <option value="Ngoại khoa">Ngoại khoa</option>
+                                        <option value="Nhi khoa">Nhi khoa</option>
+                                        <option value="Sản phụ khoa">Sản phụ khoa</option>
+                                        <option value="Tai Mũi Họng">Tai Mũi Họng</option>
+                                        <option value="Răng Hàm Mặt">Răng Hàm Mặt</option>
+                                        <option value="Mắt">Mắt</option>
+                                        <option value="Da liễu">Da liễu</option>
+                                        <option value="Tâm thần">Tâm thần</option>
+                                        <option value="Tim mạch">Tim mạch</option>
+                                    </select>
+                                </div>
+                            )}
 
                             {/* Messages */}
                             {createError && (
