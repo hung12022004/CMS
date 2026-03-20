@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { getDoctorsApi, getDoctorReviewsApi } from "../services/user.api";
+import { getDoctorsApi } from "../services/user.api";
 
 const specialties = [
     "Tất cả",
@@ -42,8 +42,8 @@ export default function DoctorsPage() {
                     id: d._id, // Use _id as id for links
                     specialty: d.specialty || "Bác sĩ đa khoa",
                     avatar: d.avatarUrl || "https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?w=200&h=200&fit=crop&crop=face",
-                    rating: d.rating || 0,
-                    reviews: d.reviewsCount || 0,
+                    rating: 4.8,
+                    reviews: 124,
                     experience: "10 năm",
                     price: 300000,
                     available: true,
@@ -57,34 +57,6 @@ export default function DoctorsPage() {
         };
         fetchDoctors();
     }, []);
-
-    // Reviews Modal State
-    const [reviewsModalOpen, setReviewsModalOpen] = useState(false);
-    const [selectedDoctorForReviews, setSelectedDoctorForReviews] = useState(null);
-    const [doctorReviews, setDoctorReviews] = useState([]);
-    const [loadingReviews, setLoadingReviews] = useState(false);
-
-    const handleOpenReviews = async (doctor) => {
-        setSelectedDoctorForReviews(doctor);
-        setReviewsModalOpen(true);
-        setLoadingReviews(true);
-        try {
-            const res = await getDoctorReviewsApi(doctor.id);
-            setDoctorReviews(res.reviews || []);
-        } catch (err) {
-            console.error("Error fetching reviews:", err);
-            alert("Có lỗi xảy ra khi tải đánh giá.");
-            setReviewsModalOpen(false);
-        } finally {
-            setLoadingReviews(false);
-        }
-    };
-
-    const handleCloseReviews = () => {
-        setReviewsModalOpen(false);
-        setSelectedDoctorForReviews(null);
-        setDoctorReviews([]);
-    };
 
     // Filter doctors
     const filteredDoctors = doctors.filter((doctor) => {
@@ -222,26 +194,13 @@ export default function DoctorsPage() {
                                     {/* Rating */}
                                     <div className="flex items-center gap-2 mt-2">
                                         <div className="flex items-center gap-1">
-                                            <svg className={`w-4 h-4 ${doctor.rating > 0 ? 'text-yellow-400 fill-current' : 'text-gray-300'}`} viewBox="0 0 20 20">
+                                            <svg className="w-4 h-4 text-yellow-400 fill-current" viewBox="0 0 20 20">
                                                 <path d="M10 15l-5.878 3.09 1.123-6.545L.489 6.91l6.572-.955L10 0l2.939 5.955 6.572.955-4.756 4.635 1.123 6.545z" />
                                             </svg>
-                                            {doctor.rating > 0 ? (
-                                                <span className="font-semibold text-gray-800">{doctor.rating}</span>
-                                            ) : (
-                                                <span className="font-semibold text-gray-400 text-sm">Chưa có đánh giá</span>
-                                            )}
+                                            <span className="font-semibold text-gray-800">{doctor.rating}</span>
                                         </div>
-                                        {doctor.rating > 0 && (
-                                            <>
-                                                <span className="text-gray-400">•</span>
-                                                <span 
-                                                    className="text-blue-600 font-medium text-sm hover:underline cursor-pointer"
-                                                    onClick={() => handleOpenReviews(doctor)}
-                                                >
-                                                    {doctor.reviews} đánh giá
-                                                </span>
-                                            </>
-                                        )}
+                                        <span className="text-gray-400">•</span>
+                                        <span className="text-gray-500 text-sm">{doctor.reviews} đánh giá</span>
                                         <span className="text-gray-400">•</span>
                                         <span className="text-gray-500 text-sm">{doctor.experience}</span>
                                     </div>
@@ -285,85 +244,6 @@ export default function DoctorsPage() {
                         <p className="text-gray-500">
                             Thử thay đổi bộ lọc hoặc từ khóa tìm kiếm
                         </p>
-                    </div>
-                )}
-
-                {/* Reviews Modal */}
-                {reviewsModalOpen && selectedDoctorForReviews && (
-                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in">
-                        <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg mt-10 md:mt-20 max-h-[90vh] flex flex-col">
-                            <div className="p-6 border-b flex justify-between items-center">
-                                <div>
-                                    <h3 className="text-xl font-bold text-gray-800">
-                                        Đánh giá {selectedDoctorForReviews.name}
-                                    </h3>
-                                    <div className="flex items-center gap-1 mt-1">
-                                        <span className="font-semibold text-gray-800">{selectedDoctorForReviews.rating}</span>
-                                        <svg className="w-4 h-4 text-yellow-500 fill-current" viewBox="0 0 20 20">
-                                            <path d="M10 15l-5.878 3.09 1.123-6.545L.489 6.91l6.572-.955L10 0l2.939 5.955 6.572.955-4.756 4.635 1.123 6.545z" />
-                                        </svg>
-                                        <span className="text-gray-500 text-sm ml-1">({selectedDoctorForReviews.reviews} nhận xét)</span>
-                                    </div>
-                                </div>
-                                <button 
-                                    onClick={handleCloseReviews}
-                                    className="text-gray-400 hover:text-gray-600 transition-colors"
-                                >
-                                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                    </svg>
-                                </button>
-                            </div>
-
-                            <div className="p-6 overflow-y-auto space-y-4 flex-1">
-                                {loadingReviews ? (
-                                    <div className="flex justify-center items-center py-12">
-                                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-                                    </div>
-                                ) : doctorReviews.length > 0 ? (
-                                    doctorReviews.map((review, i) => (
-                                        <div key={review._id || i} className="bg-gray-50 rounded-xl p-4 border border-gray-100">
-                                            <div className="flex items-center gap-3 mb-2">
-                                                <img 
-                                                    src={review.patientId?.avatarUrl || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&h=100&fit=crop&crop=face"} 
-                                                    alt={review.patientId?.name || "Bệnh nhân"} 
-                                                    className="w-10 h-10 rounded-full object-cover"
-                                                />
-                                                <div className="flex-1">
-                                                    <h4 className="font-semibold text-gray-800 text-sm">
-                                                        {review.patientId?.name || "Bệnh nhân ẩn danh"}
-                                                    </h4>
-                                                    <div className="flex items-center gap-2 text-xs text-gray-500">
-                                                        <div className="flex gap-0.5">
-                                                            {[1, 2, 3, 4, 5].map((star) => (
-                                                                <svg 
-                                                                    key={star} 
-                                                                    className={`w-3 h-3 ${star <= review.rating ? "text-yellow-400 fill-current" : "text-gray-300 fill-current"}`} 
-                                                                    viewBox="0 0 20 20"
-                                                                >
-                                                                    <path d="M10 15l-5.878 3.09 1.123-6.545L.489 6.91l6.572-.955L10 0l2.939 5.955 6.572.955-4.756 4.635 1.123 6.545z" />
-                                                                </svg>
-                                                            ))}
-                                                        </div>
-                                                        <span>•</span>
-                                                        <span>{new Date(review.date).toLocaleDateString("vi-VN")}</span>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            {review.review && (
-                                                <p className="text-gray-600 text-sm italic mt-2 ml-13 border-l-2 border-gray-200 pl-3">
-                                                    "{review.review}"
-                                                </p>
-                                            )}
-                                        </div>
-                                    ))
-                                ) : (
-                                    <div className="text-center py-8">
-                                        <p className="text-gray-500">Bác sĩ chưa có nhận xét chi tiết nào.</p>
-                                    </div>
-                                )}
-                            </div>
-                        </div>
                     </div>
                 )}
             </div>

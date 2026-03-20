@@ -65,11 +65,7 @@ export const getDoctorsApi = async () => {
  * GET /api/v1/users/doctors/:id
  * Lấy chi tiết bác sĩ
  */
-/**
- * GET /api/v1/users/doctors/:id/reviews
- * Lấy danh sách đánh giá của 1 bác sĩ
- */
-export const getDoctorReviewsApi = async (id) => {
-  const res = await api.get(`/users/doctors/${id}/reviews`);
+export const getDoctorByIdApi = async (id) => {
+  const res = await api.get(`/users/doctors/${id}`);
   return res.data;
 };

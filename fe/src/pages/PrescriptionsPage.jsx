@@ -78,7 +78,6 @@ export default function PrescriptionsPage() {
 
     // Form state
     const [formPatientId, setFormPatientId] = useState("");
-    const [isFormPatientLocked, setIsFormPatientLocked] = useState(false);
     const [formMeds, setFormMeds] = useState([{ ...EMPTY_MED }]);
 
     // Danh sách bệnh nhân đã đăng ký
@@ -96,7 +95,6 @@ export default function PrescriptionsPage() {
                     // Check if we came from Appointments with a patient
                     if (location.state?.patientId) {
                         setFormPatientId(location.state.patientId);
-                        setIsFormPatientLocked(true);
                         setShowForm(true);
                         // Optional: clear state to prevent re-opening on refresh
                         window.history.replaceState({}, document.title);
@@ -195,9 +193,7 @@ export default function PrescriptionsPage() {
         setSavedPrescriptions(stored);
 
         // Reset form
-        if (!isFormPatientLocked) {
-            setFormPatientId("");
-        }
+        setFormPatientId("");
         setFormMeds([{ ...EMPTY_MED }]);
         setShowForm(false);
     };
@@ -235,28 +231,19 @@ export default function PrescriptionsPage() {
                         {/* Patient Select Dropdown */}
                         <div className="mb-4">
                             <label className="block text-sm font-medium text-gray-700 mb-1">Chọn bệnh nhân *</label>
-                            {isFormPatientLocked ? (
-                                <div className="w-full px-4 py-3 border border-gray-200 rounded-xl bg-gray-50 text-gray-700 font-medium">
-                                    {patientsList.find(p => p._id === formPatientId)?.name} 
-                                    <span className="text-gray-500 font-normal ml-1">
-                                        ({patientsList.find(p => p._id === formPatientId)?.email})
-                                    </span>
-                                </div>
-                            ) : (
-                                <select
-                                    value={formPatientId}
-                                    onChange={e => setFormPatientId(e.target.value)}
-                                    className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 text-gray-900 bg-white"
-                                >
-                                    <option value="">-- Chọn bệnh nhân --</option>
-                                    {patientsList.map((p) => (
-                                        <option key={p._id} value={p._id}>
-                                            {p.name} ({p.email})
-                                        </option>
-                                    ))}
-                                </select>
-                            )}
-                            {patientsList.length === 0 && !isFormPatientLocked && (
+                            <select
+                                value={formPatientId}
+                                onChange={e => setFormPatientId(e.target.value)}
+                                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 text-gray-900 bg-white"
+                            >
+                                <option value="">-- Chọn bệnh nhân --</option>
+                                {patientsList.map((p) => (
+                                    <option key={p._id} value={p._id}>
+                                        {p.name} ({p.email})
+                                    </option>
+                                ))}
+                            </select>
+                            {patientsList.length === 0 && (
                                 <p className="text-xs text-amber-600 mt-1">Chưa có bệnh nhân nào đăng ký tài khoản</p>
                             )}
                         </div>

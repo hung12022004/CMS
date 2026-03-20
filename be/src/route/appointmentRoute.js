@@ -8,6 +8,5 @@ router.get("/", auth, appointmentController.getAppointments);
 router.post("/", auth, appointmentController.createAppointment);
 router.patch("/:id", auth, appointmentController.updateAppointment); // Cập nhật chi tiết
 router.patch("/:id/status", auth, authorize("doctor", "nurse", "admin", "patient"), appointmentController.updateStatus);
-router.patch("/:id/review", auth, authorize("patient"), appointmentController.reviewAppointment);
 
 module.exports = router;

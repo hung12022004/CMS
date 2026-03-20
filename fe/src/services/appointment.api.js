@@ -27,12 +27,3 @@ export const updateAppointmentDetailsApi = async (id, payload) => {
     const res = await api.patch(`/appointments/${id}`, payload);
     return res.data;
 };
-
-/**
- * PATCH /api/v1/appointments/:id/review
- * Thêm đánh giá cho lịch hẹn đã hoàn thành
- */
-export const reviewAppointmentApi = async (id, payload) => {
-    const res = await api.patch(`/appointments/${id}/review`, payload);
-    return res.data;
-};
