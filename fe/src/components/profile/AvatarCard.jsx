@@ -14,25 +14,28 @@ const AvatarCard = ({ user, isEditing, onEditToggle, saving }) => {
 
   return (
     <div className="flex items-center justify-between mb-8">
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-6">
         <img
           src={getAvatarSrc()}
           alt="avatar"
-          className="w-20 h-20 rounded-full object-cover border border-gray-200"
+          className="w-24 h-24 rounded-full object-cover border-2 border-gray-300 shadow-sm"
         />
 
         <div>
-          <p className="text-gray-900 font-semibold">
+          <p className="text-xl text-gray-900 font-bold">
             {user.name || "User"}
           </p>
           <p className="text-sm text-gray-600">{user.email}</p>
+          <p className="text-xs text-gray-500 mt-2 capitalize font-medium">
+            {user.role}
+          </p>
         </div>
       </div>
 
       <button
         onClick={onEditToggle}
         disabled={saving}
-        className={`px-4 py-2 rounded-lg text-white font-medium transition
+        className={`px-6 py-3 rounded-lg text-white font-medium transition
           ${isEditing
             ? "bg-green-500 hover:bg-green-600"
             : "bg-blue-500 hover:bg-blue-600"
@@ -40,7 +43,7 @@ const AvatarCard = ({ user, isEditing, onEditToggle, saving }) => {
           disabled:opacity-60
         `}
       >
-        {saving ? "Updating..." : isEditing ? "Update" : "Edit"}
+        {saving ? "Updating..." : isEditing ? "Update Profile" : "Edit Profile"}
       </button>
     </div>
   );

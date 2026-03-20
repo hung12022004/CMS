@@ -40,17 +40,6 @@ const appointmentSchema = new mongoose.Schema(
             trim: true,
             default: "",
         },
-        rating: {
-            type: Number,
-            min: 1,
-            max: 5,
-            default: null,
-        },
-        review: {
-            type: String,
-            trim: true,
-            default: "",
-        },
     },
     { timestamps: true }
 );

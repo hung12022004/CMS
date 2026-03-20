@@ -29,7 +29,7 @@ exports.getMedicalRecords = async (req, res) => {
 // POST /api/v1/medical-records
 exports.createMedicalRecord = async (req, res) => {
     try {
-        const { patientId, diagnosis, symptoms, tests, vitals, prescriptions, attachments, notes, date, status } = req.body;
+        const { patientId, diagnosis, symptoms, notes, date } = req.body;
         const doctorId = req.user.id;
 
         if (!patientId || !diagnosis || !date) {
@@ -41,11 +41,6 @@ exports.createMedicalRecord = async (req, res) => {
             doctorId,
             diagnosis,
             symptoms: symptoms || [],
-            tests: tests || [],
-            vitals: vitals || {},
-            prescriptions: prescriptions || [],
-            attachments: attachments || [],
-            status: status || "completed",
             notes: notes || "",
             date,
         });

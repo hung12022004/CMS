@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
-import { getAppointmentsApi, updateAppointmentStatusApi, reviewAppointmentApi } from "../services/appointment.api";
+import { getAppointmentsApi, updateAppointmentStatusApi } from "../services/appointment.api";
 
 // Mock appointments data (Doctor/Nurse view - hiển thị bệnh nhân) - fallback demo
 const mockDoctorAppointments = {
@@ -85,13 +85,6 @@ export default function AppointmentsPage() {
     const [loading, setLoading] = useState(true);
     const [showSuccess, setShowSuccess] = useState(location.state?.bookingSuccess || false);
 
-    // Modal state for Reviews
-    const [reviewModalOpen, setReviewModalOpen] = useState(false);
-    const [selectedAppointmentForReview, setSelectedAppointmentForReview] = useState(null);
-    const [reviewRating, setReviewRating] = useState(5);
-    const [reviewText, setReviewText] = useState("");
-    const [submittingReview, setSubmittingReview] = useState(false);
-
     const isStaffView = user?.role === "doctor" || user?.role === "nurse" || user?.role === "admin";
 
     // Fetch data
@@ -154,7 +147,7 @@ export default function AppointmentsPage() {
 
     const handleReschedule = (appointment) => {
         // Navigate to booking page with doctorId and state indicating rescheduling
-        const doctorId = appointment.doctorId?._id || appointment.doctorId?.id || appointment.doctorId;
+        const doctorId = isStaffView ? appointment.doctorId?._id : appointment.doctorId?._id;
         if (!doctorId) {
             alert("Lỗi: Không tìm thấy thông tin bác sĩ.");
             return;
@@ -163,7 +156,7 @@ export default function AppointmentsPage() {
         navigate(`/booking/${doctorId}`, {
             state: {
                 isReschedule: true,
-                appointmentId: appointment._id || appointment.id,
+                appointmentId: appointment._id,
                 currentDate: appointment.date,
                 currentTime: appointment.time,
                 currentReason: appointment.reason,
@@ -178,39 +171,6 @@ export default function AppointmentsPage() {
 
     const handleDirections = (address) => {
         window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`, "_blank");
-    };
-
-    const handleOpenReviewModal = (appointment) => {
-        setSelectedAppointmentForReview(appointment);
-        setReviewRating(5);
-        setReviewText("");
-        setReviewModalOpen(true);
-    };
-
-    const handleCloseReviewModal = () => {
-        setReviewModalOpen(false);
-        setSelectedAppointmentForReview(null);
-    };
-
-    const handleSubmitReview = async () => {
-        if (!selectedAppointmentForReview) return;
-        setSubmittingReview(true);
-        try {
-            await reviewAppointmentApi(selectedAppointmentForReview._id || selectedAppointmentForReview.id, {
-                rating: reviewRating,
-                review: reviewText,
-            });
-            alert("Đánh giá thành công!");
-            handleCloseReviewModal();
-            // Refresh list
-            const res = await getAppointmentsApi();
-            setAppointmentsList(res.appointments || []);
-        } catch (err) {
-            console.error("Error submitting review:", err);
-            alert(err.response?.data?.message || "Có lỗi xảy ra khi gửi đánh giá");
-        } finally {
-            setSubmittingReview(false);
-        }
     };
 
     return (
@@ -274,11 +234,10 @@ export default function AppointmentsPage() {
                 {/* Appointments List */}
                 <div className="space-y-4">
                     {appointments.map((appointment, index) => {
-                        const appointmentId = appointment._id || appointment.id;
-                        const status = statusConfig[appointment.status] || statusConfig.pending;
+                        const status = statusConfig[appointment.status];
                         return (
                             <div
-                                key={appointmentId}
+                                key={appointment._id}
                                 className={`bg-white rounded-2xl overflow-hidden shadow-lg border-l-4 ${status.border} animate-fade-in`}
                                 style={{ animationDelay: `${index * 0.05}s` }}
                             >
@@ -366,7 +325,7 @@ export default function AppointmentsPage() {
                                             {/* Confirm Button - Nurse only, pending only */}
                                             {isStaffView && appointment.status === "pending" && (
                                                 <button
-                                                    onClick={() => handleConfirm(appointmentId)}
+                                                    onClick={() => handleConfirm(appointment._id)}
                                                     className="px-4 py-2 bg-emerald-500 text-white hover:bg-emerald-600 rounded-xl transition-colors font-medium"
                                                 >
                                                     ✅ Xác nhận
@@ -376,7 +335,7 @@ export default function AppointmentsPage() {
                                             {/* Create Medical Record - Doctor only, confirmed appointments */}
                                             {isStaffView && user?.role === "doctor" && appointment.status === "confirmed" && (
                                                 <button
-                                                    onClick={() => navigate("/medical-records", { state: { patientId: appointment.patientId?._id || appointment.patientId?.id, patientName: appointment.patientId?.name, appointmentId: appointmentId } })}
+                                                    onClick={() => navigate("/medical-records", { state: { patientId: appointment.patientId?._id, patientName: appointment.patientId?.name, appointmentId: appointment._id } })}
                                                     className="px-4 py-2 bg-blue-100 text-blue-700 hover:bg-blue-200 rounded-xl transition-colors font-medium"
                                                 >
                                                     📝 Tạo hồ sơ
@@ -393,7 +352,7 @@ export default function AppointmentsPage() {
 
                                             {/* Cancel Button */}
                                             <button
-                                                onClick={() => handleCancel(appointmentId)}
+                                                onClick={() => handleCancel(appointment._id)}
                                                 className="px-4 py-2 text-red-500 hover:bg-red-50 rounded-xl transition-colors"
                                             >
                                                 Hủy
@@ -422,30 +381,12 @@ export default function AppointmentsPage() {
                                                 </svg>
                                                 Xem hồ sơ
                                             </button>
-                                            
-                                            {/* Patient-only: Review Button */}
-                                            {!isStaffView && (
-                                                <>
-                                                    {appointment.rating ? (
-                                                        <div className="flex items-center gap-2 px-4 py-2 bg-yellow-50 text-yellow-700 rounded-xl border border-yellow-200">
-                                                            <svg className="w-4 h-4 text-yellow-500 fill-current" viewBox="0 0 20 20">
-                                                                <path d="M10 15l-5.878 3.09 1.123-6.545L.489 6.91l6.572-.955L10 0l2.939 5.955 6.572.955-4.756 4.635 1.123 6.545z" />
-                                                            </svg>
-                                                            <span className="font-semibold">Đã đánh giá {appointment.rating} sao</span>
-                                                        </div>
-                                                    ) : (
-                                                        <button 
-                                                            onClick={() => handleOpenReviewModal(appointment)}
-                                                            className="flex items-center gap-2 px-4 py-2 bg-amber-50 text-amber-700 rounded-xl hover:bg-amber-100 transition-colors"
-                                                        >
-                                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
-                                                            </svg>
-                                                            Đánh giá
-                                                        </button>
-                                                    )}
-                                                </>
-                                            )}
+                                            <button className="flex items-center gap-2 px-4 py-2 bg-amber-50 text-amber-700 rounded-xl hover:bg-amber-100 transition-colors">
+                                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
+                                                </svg>
+                                                Đánh giá
+                                            </button>
                                         </div>
                                     )}
                                 </div>
@@ -476,66 +417,6 @@ export default function AppointmentsPage() {
                                 Đặt lịch ngay
                             </button>
                         )}
-                    </div>
-                )}
-
-                {/* Review Modal */}
-                {reviewModalOpen && selectedAppointmentForReview && (
-                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in">
-                        <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden">
-                            <div className="p-6">
-                                <div className="flex justify-between items-center mb-4">
-                                    <h3 className="text-xl font-bold text-gray-800">Đánh giá bác sĩ</h3>
-                                    <button 
-                                        onClick={handleCloseReviewModal}
-                                        className="text-gray-400 hover:text-gray-600 transition-colors"
-                                    >
-                                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                        </svg>
-                                    </button>
-                                </div>
-
-                                <div className="mb-6 flex justify-center gap-2">
-                                    {[1, 2, 3, 4, 5].map((star) => (
-                                        <button
-                                            key={star}
-                                            type="button"
-                                            onClick={() => setReviewRating(star)}
-                                            className="focus:outline-none transition-transform hover:scale-110"
-                                        >
-                                            <svg 
-                                                className={`w-10 h-10 ${star <= reviewRating ? "text-yellow-400 fill-current" : "text-gray-300"}`} 
-                                                viewBox="0 0 20 20"
-                                            >
-                                                <path d="M10 15l-5.878 3.09 1.123-6.545L.489 6.91l6.572-.955L10 0l2.939 5.955 6.572.955-4.756 4.635 1.123 6.545z" />
-                                            </svg>
-                                        </button>
-                                    ))}
-                                </div>
-
-                                <div className="mb-4">
-                                    <label className="block text-sm font-medium text-gray-700 mb-2">Nhận xét (không bắt buộc)</label>
-                                    <textarea
-                                        value={reviewText}
-                                        onChange={(e) => setReviewText(e.target.value)}
-                                        placeholder="Chia sẻ trải nghiệm của bạn..."
-                                        className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all outline-none resize-none"
-                                        rows="4"
-                                    ></textarea>
-                                </div>
-
-                                <button
-                                    onClick={handleSubmitReview}
-                                    disabled={submittingReview}
-                                    className={`w-full py-3 rounded-xl font-semibold text-white transition-all ${
-                                        submittingReview ? "bg-gray-400 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700 hover:shadow-lg"
-                                    }`}
-                                >
-                                    {submittingReview ? "Đang gửi..." : "Gửi đánh giá"}
-                                </button>
-                            </div>
-                        </div>
                     </div>
                 )}
             </div>

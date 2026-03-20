@@ -6,6 +6,18 @@ const EditForm = ({ form, setForm, isEditing, onAvatarUpload }) => {
   const [uploading, setUploading] = useState(false);
   const [previewUrl, setPreviewUrl] = useState(null);
 
+  const getRoleInfo = (role) => {
+    const roleMap = {
+      admin: { label: "Admin", color: "bg-red-100 text-red-700" },
+      doctor: { label: "Doctor", color: "bg-blue-100 text-blue-700" },
+      nurse: { label: "Nurse", color: "bg-green-100 text-green-700" },
+      patient: { label: "Patient", color: "bg-gray-100 text-gray-700" },
+    };
+    return roleMap[role] || { label: "Unknown", color: "bg-gray-100 text-gray-700" };
+  };
+
+  const roleInfo = getRoleInfo(form.role);
+
   const handleChange = (e) => {
     const { name, value } = e.target;
     setForm((prev) => ({ ...prev, [name]: value }));
@@ -47,22 +59,6 @@ const EditForm = ({ form, setForm, isEditing, onAvatarUpload }) => {
     return null;
   };
 
-  // Xác định thông tin Role hiển thị
-  const getRoleInfo = (r) => {
-    switch (r) {
-      case "admin":
-        return { label: "Admin", color: "bg-red-100 text-red-700 border-red-200" };
-      case "doctor":
-        return { label: "Bác sĩ", color: "bg-blue-100 text-blue-700 border-blue-200" };
-      case "patient":
-        return { label: "Bệnh nhân", color: "bg-green-100 text-green-700 border-green-200" };
-      case "staff":
-        return { label: "Nhân viên", color: "bg-purple-100 text-purple-700 border-purple-200" };
-      default:
-        return { label: r || "Khách", color: "bg-gray-100 text-gray-700 border-gray-200" };
-    }
-  };
-  const roleInfo = getRoleInfo(form.role);
 
   return (
     <div className="grid grid-cols-2 gap-6 text-gray-900">
@@ -146,15 +142,15 @@ const EditForm = ({ form, setForm, isEditing, onAvatarUpload }) => {
       </div>
 
       {/* Avatar Upload */}
-      <div>
-        <label className="block text-sm font-medium mb-1">Avatar</label>
-        <div className="flex items-center gap-3">
+      <div className="col-span-2">
+        <label className="block text-sm font-medium mb-2">Avatar</label>
+        <div className="flex items-center gap-4">
           {/* Preview */}
           {getAvatarSrc() && (
             <img
               src={getAvatarSrc()}
               alt="Avatar preview"
-              className="w-12 h-12 rounded-full object-cover border border-gray-300"
+              className="w-16 h-16 rounded-full object-cover border-2 border-gray-300 shadow-sm"
             />
           )}
 
@@ -173,12 +169,12 @@ const EditForm = ({ form, setForm, isEditing, onAvatarUpload }) => {
             onClick={() => fileInputRef.current?.click()}
             disabled={!isEditing || uploading}
             className="px-4 py-2 text-sm font-medium rounded-xl border border-gray-300 
-                       bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                       bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition"
           >
             {uploading ? "Uploading..." : "Chọn ảnh"}
           </button>
         </div>
-        <p className="mt-1 text-xs text-gray-500">JPG, PNG, GIF, WebP (tối đa 5MB)</p>
+        <p className="mt-2 text-xs text-gray-500">JPG, PNG, GIF, WebP (tối đa 5MB)</p>
       </div>
     </div>
   );
