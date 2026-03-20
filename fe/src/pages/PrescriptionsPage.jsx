@@ -234,7 +234,8 @@ export default function PrescriptionsPage() {
                             <select
                                 value={formPatientId}
                                 onChange={e => setFormPatientId(e.target.value)}
-                                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 text-gray-900 bg-white"
+                                disabled={!!location.state?.patientId}
+                                className={`w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 text-gray-900 bg-white ${location.state?.patientId ? "bg-gray-100 cursor-not-allowed text-gray-500" : ""}`}
                             >
                                 <option value="">-- Chọn bệnh nhân --</option>
                                 {patientsList.map((p) => (
@@ -243,7 +244,10 @@ export default function PrescriptionsPage() {
                                     </option>
                                 ))}
                             </select>
-                            {patientsList.length === 0 && (
+                            {location.state?.patientId && (
+                                <p className="text-xs text-blue-600 mt-1 italic">Dữ liệu bệnh nhân được cố định từ lịch xét nghiệm.</p>
+                            )}
+                            {patientsList.length === 0 && !location.state?.patientId && (
                                 <p className="text-xs text-amber-600 mt-1">Chưa có bệnh nhân nào đăng ký tài khoản</p>
                             )}
                         </div>
