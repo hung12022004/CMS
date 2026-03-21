@@ -19,5 +19,6 @@ router.get("/patients", auth, authorize("doctor", "nurse", "admin"), userControl
 // Lấy danh sách bác sĩ (tất cả mọi người đều có thể xem)
 router.get("/doctors", userController.getDoctors);
 router.get("/doctors/:id", userController.getDoctorById);
+router.get("/doctors/:id/reviews", userController.getDoctorReviews);
 
 module.exports = router;

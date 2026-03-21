@@ -16,13 +16,11 @@ const NAV_BY_ROLE = {
     { label: "Bác sĩ", path: "/doctors" },
     { label: "Lịch hẹn", path: "/appointments" },
     { label: "Hồ sơ bệnh án", path: "/medical-records" },
-    { label: "Đơn thuốc", path: "/prescriptions" },
   ],
   doctor: [
     { label: "Dashboard", path: "/dashboard" },
     { label: "Bệnh nhân hẹn khám", path: "/appointments" },
     { label: "Danh sách bệnh nhân", path: "/medical-records" },
-    { label: "Đơn thuốc", path: "/prescriptions" },
   ],
   nurse: [
     { label: "Dashboard", path: "/dashboard" },
@@ -152,7 +150,7 @@ export default function Header() {
           >
             <img
               src={getAvatarSrc()}
-
+              className="w-8 h-8 rounded-full object-cover"
               alt="avatar"
             />
             <div className="hidden sm:block text-left">

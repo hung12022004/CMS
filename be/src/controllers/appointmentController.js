@@ -83,11 +83,7 @@ exports.updateStatus = async (req, res) => {
                 return res.status(403).json({ message: "Bạn chỉ có quyền hủy lịch hẹn" });
             }
             // Patients can only cancel their own appointments
-                const aptPatientId = appointment.patientId?._id 
-                    ? appointment.patientId._id.toString() 
-                    : appointment.patientId?.toString();
-                    
-                if (aptPatientId !== userId?.toString()) {
+            if (appointment.patientId.toString() !== userId) {
                 return res.status(403).json({ message: "Bạn không có quyền thực hiện hành động này" });
             }
         }
@@ -135,6 +131,71 @@ exports.updateAppointment = async (req, res) => {
 
     } catch (err) {
         console.error("updateAppointment error:", err);
+        return res.status(500).json({ message: "Server error" });
+    }
+};
+
+/**
+ * PATCH /api/v1/appointments/:id/review
+ * Bệnh nhân đánh giá lịch hẹn sau khi khám
+ * body: { rating, review }
+ */
+exports.reviewAppointment = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { rating, review } = req.body;
+        const userId = req.user.id;
+
+        if (!rating || rating < 1 || rating > 5) {
+            return res.status(400).json({ message: "Rating từ 1-5 là bắt buộc" });
+        }
+
+        const appointment = await Appointment.findById(id);
+        if (!appointment) {
+            return res.status(404).json({ message: "Không tìm thấy lịch hẹn" });
+        }
+
+        if (appointment.patientId.toString() !== userId) {
+            return res.status(403).json({ message: "Bạn không có quyền đánh giá lịch hẹn này" });
+        }
+
+        if (appointment.status !== "completed") {
+            return res.status(400).json({ message: "Chỉ có thể đánh giá lịch hẹn đã hoàn thành" });
+        }
+
+        if (appointment.rating) {
+            return res.status(400).json({ message: "Lịch hẹn này đã được đánh giá rồi" });
+        }
+
+        // 1. Update appointment
+        appointment.rating = rating;
+        appointment.review = review || "";
+        await appointment.save();
+
+        // 2. Update doctor average rating
+        const doctorId = appointment.doctorId;
+        const doctor = await User.findById(doctorId);
+        if (doctor) {
+            const allRatedAppointments = await Appointment.find({
+                doctorId,
+                rating: { $exists: true },
+            });
+
+            const totalRating = allRatedAppointments.reduce((sum, app) => sum + app.rating, 0);
+            const count = allRatedAppointments.length;
+
+            doctor.rating = parseFloat((totalRating / count).toFixed(1));
+            doctor.reviewsCount = count;
+            await doctor.save();
+        }
+
+        return res.status(200).json({
+            message: "Đánh giá thành công",
+            rating: appointment.rating,
+            reviewsCount: doctor ? doctor.reviewsCount : 0,
+        });
+    } catch (err) {
+        console.error("reviewAppointment error:", err);
         return res.status(500).json({ message: "Server error" });
     }
 };
