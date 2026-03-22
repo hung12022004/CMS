@@ -18,7 +18,6 @@ import DoctorsPage from "../pages/DoctorsPage";
 import BookingPage from "../pages/BookingPage";
 import AppointmentsPage from "../pages/AppointmentsPage";
 import MedicalRecordsPage from "../pages/MedicalRecordsPage";
-import PrescriptionsPage from "../pages/PrescriptionsPage";
 
 // Admin Pages
 import AdminUsersPage from "../pages/AdminUsersPage";
@@ -65,7 +64,6 @@ export default function AppRoutes() {
         >
           <Route path="/appointments" element={<AppointmentsPage />} />
           <Route path="/medical-records" element={<MedicalRecordsPage />} />
-          <Route path="/prescriptions" element={<PrescriptionsPage />} />
         </Route>
 
         {/* Nurse only */}

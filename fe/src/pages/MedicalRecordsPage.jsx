@@ -132,7 +132,8 @@ export default function MedicalRecordsPage() {
                     if (locationState.appointmentId) {
                         setFormAppointmentId(locationState.appointmentId);
                     }
-                    setShowForm(true);
+                    // Delay setting showForm to prevent the other useEffect from overwriting it
+                    setTimeout(() => setShowForm(true), 100);
                 }
             } catch (err) {
                 console.error("Error fetching medical records data:", err);
@@ -297,12 +298,56 @@ export default function MedicalRecordsPage() {
                                                     {record.status || "Hoàn thành"}
                                                 </span>
                                             </div>
-                                            <p className="text-gray-600 text-sm mb-4">{record.notes}</p>
+                                            <div className="space-y-4">
+                                                {record.symptoms && record.symptoms.length > 0 && (
+                                                    <div className="flex flex-wrap gap-2">
+                                                        {record.symptoms.map((s, i) => (
+                                                            <span key={i} className="px-2.5 py-1 bg-slate-100 text-slate-600 rounded-lg text-[10px] font-medium border border-slate-200">
+                                                                {s}
+                                                            </span>
+                                                        ))}
+                                                    </div>
+                                                )}
+
+                                                <div className="bg-slate-50 border border-slate-100 rounded-xl p-4">
+                                                    <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Ghi chú & Nhận xét</p>
+                                                    <p className="text-gray-700 text-sm leading-relaxed">{record.notes || "Không có ghi chú thêm."}</p>
+                                                </div>
+
+                                                {record.vitals && (record.vitals.weight || record.vitals.bloodPressure || record.vitals.heartRate || record.vitals.temperature) && (
+                                                    <div className="grid grid-cols-4 gap-2">
+                                                        {record.vitals.weight && (
+                                                            <div className="bg-white border border-gray-100 p-2 rounded-lg text-center">
+                                                                <p className="text-[8px] text-gray-400 uppercase font-bold">Cân nặng</p>
+                                                                <p className="text-xs font-bold text-gray-700">{record.vitals.weight}kg</p>
+                                                            </div>
+                                                        )}
+                                                        {record.vitals.bloodPressure && (
+                                                            <div className="bg-white border border-gray-100 p-2 rounded-lg text-center">
+                                                                <p className="text-[8px] text-gray-400 uppercase font-bold">Huyết áp</p>
+                                                                <p className="text-xs font-bold text-gray-700">{record.vitals.bloodPressure}</p>
+                                                            </div>
+                                                        )}
+                                                        {record.vitals.heartRate && (
+                                                            <div className="bg-white border border-gray-100 p-2 rounded-lg text-center">
+                                                                <p className="text-[8px] text-gray-400 uppercase font-bold">Nhịp tim</p>
+                                                                <p className="text-xs font-bold text-gray-700">{record.vitals.heartRate}</p>
+                                                            </div>
+                                                        )}
+                                                        {record.vitals.temperature && (
+                                                            <div className="bg-white border border-gray-100 p-2 rounded-lg text-center">
+                                                                <p className="text-[8px] text-gray-400 uppercase font-bold">Nhiệt độ</p>
+                                                                <p className="text-xs font-bold text-gray-700">{record.vitals.temperature}°C</p>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                )}
+                                            </div>
                                             
                                             {record.prescriptions && record.prescriptions.length > 0 && (
                                                 <div className="mt-4 pt-4 border-t border-gray-100">
-                                                    <h4 className="text-sm font-bold text-gray-800 mb-2 flex items-center gap-2">
-                                                        💊 Đơn thuốc:
+                                                    <h4 className="text-sm font-bold text-blue-600 mb-2 flex items-center gap-2">
+                                                        💊 Đơn thuốc điều trị:
                                                     </h4>
                                                     <div className="space-y-2">
                                                         {record.prescriptions.map((p, i) => (
@@ -370,6 +415,9 @@ export default function MedicalRecordsPage() {
                                 onClick={() => {
                                     setSelectedPatientId(patient._id);
                                     setFormPatientId(patient._id);
+                                    // Do not reset form here, allow Quick Create button to handle it
+                                    // setSelectedRecordId(null);
+                                    // setShowForm(false);
                                 }}
                                 className={`flex items-center gap-3 p-3 rounded-2xl cursor-pointer transition-all ${isSelected ? "bg-[#EFF6FF] border border-blue-100" : "hover:bg-gray-50 border border-transparent"
                                     }`}
@@ -378,13 +426,33 @@ export default function MedicalRecordsPage() {
                                     {patient.name[0]}
                                 </div>
                                 <div className="flex-1 min-w-0">
-                                    <h3 className="font-bold text-sm text-[#1E293B] truncate">{patient.name}</h3>
+                                    <h3 className={`font-bold text-sm truncate ${isSelected ? "text-blue-700" : "text-[#1E293B]"}`}>
+                                        {patient.name}
+                                    </h3>
                                     <p className="text-[11px] text-[#64748B] truncate">{patient.email}</p>
                                 </div>
-                                <div className="flex flex-col items-end gap-1">
+                                <div className="flex flex-col items-end gap-2">
                                     <span className="px-2 py-0.5 bg-[#E0E7FF] text-[#4338CA] text-[10px] font-bold rounded-full">
                                         {count} hồ sơ
                                     </span>
+                                    {isDoctor && (
+                                        <button
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                setSelectedPatientId(patient._id);
+                                                setFormPatientId(patient._id);
+                                                setFormAppointmentId(null);
+                                                setSelectedRecordId(null);
+                                                setTimeout(() => setShowForm(true), 50);
+                                            }}
+                                            className="p-1.5 bg-white hover:bg-blue-50 text-blue-600 rounded-lg border border-gray-100 hover:border-blue-200 transition-all shadow-sm group/btn"
+                                            title="Tạo nhanh hồ sơ"
+                                        >
+                                            <svg className="w-3.5 h-3.5 group-hover/btn:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" />
+                                            </svg>
+                                        </button>
+                                    )}
                                 </div>
                             </div>
                         );
