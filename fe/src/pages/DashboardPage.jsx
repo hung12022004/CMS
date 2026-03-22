@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
+import { getSchedulesApi } from "../services/schedule.api";
 
 // Mock data for banners
 const banners = [
@@ -24,7 +25,7 @@ const banners = [
     },
 ];
 
-// Quick menu items
+// Quick menu items — base set
 const quickMenuItems = [
     {
         id: 1,
@@ -37,6 +38,7 @@ const quickMenuItems = [
         path: "/doctors",
         color: "bg-blue-500",
         lightColor: "bg-blue-50",
+        roles: ["patient"],
     },
     {
         id: 2,
@@ -49,6 +51,46 @@ const quickMenuItems = [
         path: "/appointments",
         color: "bg-emerald-500",
         lightColor: "bg-emerald-50",
+        roles: ["patient"],
+    },
+    {
+        id: 7,
+        icon: (
+            <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+        ),
+        label: "Điều phối",
+        path: "/nurse/patients",
+        color: "bg-blue-500",
+        lightColor: "bg-blue-50",
+        roles: ["nurse"],
+    },
+    {
+        id: 8,
+        icon: (
+            <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+            </svg>
+        ),
+        label: "Xếp lịch bác sĩ",
+        path: "/nurse/schedule",
+        color: "bg-teal-500",
+        lightColor: "bg-teal-50",
+        roles: ["nurse"],
+    },
+    {
+        id: 6,
+        icon: (
+            <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+        ),
+        label: "Bệnh nhân hôm nay",
+        path: "/doctor/queue",
+        color: "bg-emerald-500",
+        lightColor: "bg-emerald-50",
+        roles: ["doctor"],
     },
     {
         id: 3,
@@ -61,6 +103,7 @@ const quickMenuItems = [
         path: "/medical-records",
         color: "bg-violet-500",
         lightColor: "bg-violet-50",
+        roles: ["patient", "doctor"],
     },
     {
         id: 4,
@@ -73,6 +116,21 @@ const quickMenuItems = [
         path: "/prescriptions",
         color: "bg-orange-500",
         lightColor: "bg-orange-50",
+        roles: [],
+    },
+    // Doctor-only: Check-in shortcut (for nurses too)
+    {
+        id: 5,
+        icon: (
+            <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+            </svg>
+        ),
+        label: "Khai báo khám",
+        path: "/checkin",
+        color: "bg-teal-500",
+        lightColor: "bg-teal-50",
+        roles: ["patient"],  // check-in only for patients
     },
 ];
 
@@ -80,8 +138,10 @@ export default function DashboardPage() {
     const navigate = useNavigate();
     const { user } = useAuth();
     const [currentBanner, setCurrentBanner] = useState(0);
-    const [searchQuery, setSearchQuery] = useState("");
     const [notificationCount] = useState(3);
+    // Doctor schedule widget
+    const [weekSchedule, setWeekSchedule] = useState([]);
+    const [scheduleLoading, setScheduleLoading] = useState(false);
 
     // Get greeting based on time
     const getGreeting = () => {
@@ -99,6 +159,41 @@ export default function DashboardPage() {
         return () => clearInterval(timer);
     }, []);
 
+    // Fetch doctor's own schedule for this week
+    useEffect(() => {
+        if (user?.role !== "doctor") return;
+        setScheduleLoading(true);
+        const today = new Date();
+        const dayOfWeek = today.getDay();
+        const daysToMon = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+        const monday = new Date(today);
+        monday.setDate(today.getDate() + daysToMon);
+        const dates = Array.from({ length: 7 }, (_, i) => {
+            const d = new Date(monday);
+            d.setDate(monday.getDate() + i);
+            return d.toISOString().slice(0, 10);
+        });
+        getSchedulesApi({ startDate: dates[0], endDate: dates[6], doctorId: user._id })
+            .then(res => setWeekSchedule(res.schedules || []))
+            .catch(console.error)
+            .finally(() => setScheduleLoading(false));
+    }, [user]);
+
+    // Build schedule map for this week
+    const today = new Date();
+    const todayStr = today.toISOString().slice(0, 10);
+    const dayOfWeek = today.getDay();
+    const daysToMon = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+    const monday = new Date(today);
+    monday.setDate(today.getDate() + daysToMon);
+    const thisWeekDates = Array.from({ length: 7 }, (_, i) => {
+        const d = new Date(monday);
+        d.setDate(monday.getDate() + i);
+        return d.toISOString().slice(0, 10);
+    });
+    const scheduleMap = {};
+    weekSchedule.forEach(s => { scheduleMap[s.date] = s; });
+
     // Redirect admin to AdminUsersPage
     useEffect(() => {
         if (user?.role === "admin") {
@@ -115,13 +210,6 @@ export default function DashboardPage() {
             return `http://localhost:5000${user.avatarUrl}`;
         }
         return user.avatarUrl;
-    };
-
-    const handleSearch = (e) => {
-        e.preventDefault();
-        if (searchQuery.trim()) {
-            navigate(`/doctors?search=${encodeURIComponent(searchQuery)}`);
-        }
     };
 
     return (
@@ -162,27 +250,6 @@ export default function DashboardPage() {
                             )}
                         </button>
                     </div>
-
-                    {/* Search Bar */}
-                    <form onSubmit={handleSearch} className="relative">
-                        <div className="relative">
-                            <svg
-                                className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400"
-                                fill="none"
-                                stroke="currentColor"
-                                viewBox="0 0 24 24"
-                            >
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                            </svg>
-                            <input
-                                type="text"
-                                value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
-                                placeholder="Tìm chuyên khoa, bác sĩ, triệu chứng..."
-                                className="w-full pl-12 pr-4 py-4 rounded-2xl bg-white shadow-xl border-0 focus:ring-4 focus:ring-blue-200 text-gray-700 placeholder-gray-400 text-lg"
-                            />
-                        </div>
-                    </form>
                 </div>
             </div>
 
@@ -190,7 +257,7 @@ export default function DashboardPage() {
             <div className="max-w-5xl mx-auto px-4 -mt-20">
                 {/* Quick Menu Grid */}
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-                    {quickMenuItems.filter(item => !(user?.role === "doctor" && item.id === 1)).map((item, index) => (
+                    {quickMenuItems.filter(item => !item.roles || item.roles.includes(user?.role)).map((item, index) => (
                         <button
                             key={item.id}
                             onClick={() => navigate(item.path)}
@@ -249,6 +316,49 @@ export default function DashboardPage() {
                         ))}
                     </div>
                 </div>
+
+                {/* Doctor: Weekly Schedule Widget */}
+                {user?.role === "doctor" && (
+                    <div className="bg-white rounded-2xl p-6 shadow-lg mb-8">
+                        <div className="flex items-center justify-between mb-4">
+                            <h2 className="text-lg font-bold text-gray-800">📅 Lịch làm việc tuần này</h2>
+                            <button onClick={() => navigate("/doctor/queue")} className="text-sm text-blue-600 hover:underline font-semibold">Xem bệnh nhân →</button>
+                        </div>
+                        {scheduleLoading ? (
+                            <div className="flex justify-center py-4"><span className="text-gray-400 text-sm">Đang tải...</span></div>
+                        ) : (
+                            <div className="grid grid-cols-7 gap-2">
+                                {thisWeekDates.map((date, i) => {
+                                    const slot = scheduleMap[date];
+                                    const isToday = date === todayStr;
+                                    const dayLabels = ["T2", "T3", "T4", "T5", "T6", "T7", "CN"];
+                                    return (
+                                        <div key={date} className={`rounded-xl p-2 text-center border-2 transition ${isToday ? "border-blue-400 shadow-md" : "border-transparent"} ${!slot ? "bg-gray-50" : slot.isWorking ? "bg-teal-50 border-teal-200" : "bg-red-50 border-red-200"}`}>
+                                            <p className={`text-[10px] font-bold uppercase ${i >= 5 ? "text-red-400" : isToday ? "text-blue-600" : "text-gray-500"}`}>{dayLabels[i]}</p>
+                                            <p className={`text-xs font-semibold mt-0.5 ${isToday ? "text-blue-700" : "text-gray-600"}`}>{date.slice(8)}</p>
+                                            {!slot ? (
+                                                <span className="text-lg mt-1 block">—</span>
+                                            ) : slot.isWorking ? (
+                                                <>
+                                                    <span className="text-lg mt-1 block">✅</span>
+                                                    <p className="text-[9px] text-teal-600 font-medium">{slot.startTime}–{slot.endTime}</p>
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <span className="text-lg mt-1 block">🚫</span>
+                                                    <p className="text-[9px] text-red-500 font-medium">Nghỉ</p>
+                                                </>
+                                            )}
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        )}
+                        {weekSchedule.length === 0 && !scheduleLoading && (
+                            <p className="text-center text-xs text-gray-400 mt-2">Y tá chưa xếp lịch cho tuần này</p>
+                        )}
+                    </div>
+                )}
 
                 {/* Quick Actions Section */}
                 <div className="bg-white rounded-2xl p-6 shadow-lg mb-8">

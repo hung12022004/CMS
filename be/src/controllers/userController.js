@@ -167,11 +167,16 @@ exports.getPatients = async (req, res) => {
     return res.status(500).json({ message: "Server error" });
   }
 };
-// GET /api/v1/users/doctors
-// Lấy danh sách bác sĩ
+// GET /api/v1/users/doctors?specialty=Mắt
+// Lấy danh sách bác sĩ, hỗ trợ lọc theo chuyên khoa
 exports.getDoctors = async (req, res) => {
   try {
-    const doctors = await User.find({ role: "doctor" })
+    const filter = { role: "doctor" };
+    if (req.query.specialty) {
+      filter.specialty = { $regex: req.query.specialty, $options: "i" };
+    }
+
+    const doctors = await User.find(filter)
       .select("name email phoneNumber gender avatarUrl rating reviewsCount specialty")
       .sort({ name: 1 });
 

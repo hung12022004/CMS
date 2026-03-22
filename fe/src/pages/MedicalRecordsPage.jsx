@@ -546,11 +546,23 @@ export default function MedicalRecordsPage() {
             <div className={`w-[450px] bg-white border-l transition-all duration-300 flex flex-col shadow-xl ${(showForm || selectedRecordId) ? "mr-0" : "-mr-[450px]"}`}>
                 {showForm ? (
                     <>
-                        <div className="p-5 border-b flex items-center justify-between bg-white sticky top-0 z-10">
-                            <h2 className="text-xl font-bold text-[#1E293B]">Tạo hồ sơ bệnh án mới</h2>
-                            <button onClick={() => setShowForm(false)} className="text-[#94A3B8] hover:text-[#475569] text-sm flex items-center gap-1">
-                                ✕ Hủy
-                            </button>
+                        {/* Professional form header */}
+                        <div className="bg-gradient-to-r from-blue-600 to-indigo-700 p-5 text-white">
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <p className="text-blue-100 text-xs font-semibold uppercase tracking-widest mb-1">Phíu khám bệnh</p>
+                                    <h2 className="text-xl font-bold">Tạo hồ sơ bệnh án</h2>
+                                    {selectedPatient && (
+                                        <div className="flex items-center gap-2 mt-2">
+                                            <div className="w-6 h-6 rounded-full bg-white/20 flex items-center justify-center text-xs font-bold">{selectedPatient.name[0]}</div>
+                                            <span className="text-sm text-blue-100 font-medium">{selectedPatient.name}</span>
+                                        </div>
+                                    )}
+                                </div>
+                                <button onClick={() => setShowForm(false)} className="w-8 h-8 rounded-full bg-white/15 hover:bg-white/25 flex items-center justify-center text-white/80 hover:text-white transition">
+                                    ✕
+                                </button>
+                            </div>
                         </div>
 
                         <div className="flex-1 overflow-y-auto p-5 space-y-6">
@@ -582,49 +594,61 @@ export default function MedicalRecordsPage() {
 
                             {/* Vitals */}
                             <div>
-                                <label className="block text-xs font-bold text-[#475569] uppercase tracking-wider mb-3">Chỉ số cơ bản (Vitals)</label>
+                                <label className="block text-xs font-bold text-[#475569] uppercase tracking-wider mb-3">📊 Chỉ số cơ bản (Vitals)</label>
                                 <div className="grid grid-cols-2 gap-3">
+                                    <div className="relative">
+                                        <input type="text" placeholder="Cân nặng" value={formVitals.weight} onChange={e => setFormVitals({ ...formVitals, weight: e.target.value })} className="w-full px-4 py-2.5 bg-[#F8FAFC] border border-[#E2E8F0] rounded-xl text-sm text-[#1E293B] focus:outline-none" />
+                                        <span className="absolute right-3 top-2.5 text-xs text-gray-400">kg</span>
+                                    </div>
+                                    <div className="relative">
+                                        <input type="text" placeholder="Huyết áp" value={formVitals.bloodPressure} onChange={e => setFormVitals({ ...formVitals, bloodPressure: e.target.value })} className="w-full px-4 py-2.5 bg-[#F8FAFC] border border-[#E2E8F0] rounded-xl text-sm text-[#1E293B] focus:outline-none" />
+                                        <span className="absolute right-3 top-2.5 text-xs text-gray-400">mmHg</span>
+                                    </div>
+                                    <div className="relative">
+                                        <input type="text" placeholder="Nhịp tim" value={formVitals.heartRate} onChange={e => setFormVitals({ ...formVitals, heartRate: e.target.value })} className="w-full px-4 py-2.5 bg-[#F8FAFC] border border-[#E2E8F0] rounded-xl text-sm text-[#1E293B] focus:outline-none" />
+                                        <span className="absolute right-3 top-2.5 text-xs text-gray-400">bpm</span>
+                                    </div>
+                                    <div className="relative">
+                                        <input type="text" placeholder="Nhiệt độ" value={formVitals.temperature} onChange={e => setFormVitals({ ...formVitals, temperature: e.target.value })} className="w-full px-4 py-2.5 bg-[#F8FAFC] border border-[#E2E8F0] rounded-xl text-sm text-[#1E293B] focus:outline-none" />
+                                        <span className="absolute right-3 top-2.5 text-xs text-gray-400">°C</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Symptoms */}
+                            <div>
+                                <label className="block text-xs font-bold text-[#475569] uppercase tracking-wider mb-2">🤒 Triệu chứng</label>
+                                <div className="flex gap-2 mb-2">
                                     <input
                                         type="text"
-                                        placeholder="Cân nặng (kg)"
-                                        value={formVitals.weight}
-                                        onChange={e => setFormVitals({ ...formVitals, weight: e.target.value })}
-                                        className="px-4 py-2.5 bg-[#F8FAFC] border border-[#E2E8F0] rounded-xl text-sm text-[#1E293B] focus:outline-none"
+                                        value={formSymptomInput}
+                                        onChange={e => setFormSymptomInput(e.target.value)}
+                                        onKeyDown={handleSymptomKeyDown}
+                                        placeholder="Nhập triệu chứng rồi Enter..."
+                                        className="flex-1 px-4 py-2.5 bg-[#F8FAFC] border border-[#E2E8F0] rounded-xl text-sm text-[#1E293B] focus:outline-none"
                                     />
-                                    <input
-                                        type="text"
-                                        placeholder="Huyết áp (mmHg)"
-                                        value={formVitals.bloodPressure}
-                                        onChange={e => setFormVitals({ ...formVitals, bloodPressure: e.target.value })}
-                                        className="px-4 py-2.5 bg-[#F8FAFC] border border-[#E2E8F0] rounded-xl text-sm text-[#1E293B] focus:outline-none"
-                                    />
-                                    <input
-                                        type="text"
-                                        placeholder="Nhịp tim (bpm)"
-                                        value={formVitals.heartRate}
-                                        onChange={e => setFormVitals({ ...formVitals, heartRate: e.target.value })}
-                                        className="px-4 py-2.5 bg-[#F8FAFC] border border-[#E2E8F0] rounded-xl text-sm text-[#1E293B] focus:outline-none"
-                                    />
-                                    <input
-                                        type="text"
-                                        placeholder="Nhiệt độ (°C)"
-                                        value={formVitals.temperature}
-                                        onChange={e => setFormVitals({ ...formVitals, temperature: e.target.value })}
-                                        className="px-4 py-2.5 bg-[#F8FAFC] border border-[#E2E8F0] rounded-xl text-sm text-[#1E293B] focus:outline-none"
-                                    />
+                                    <button onClick={addSymptom} className="px-3 py-2 bg-blue-100 text-blue-700 rounded-xl text-sm font-semibold hover:bg-blue-200 transition">+</button>
+                                </div>
+                                <div className="flex flex-wrap gap-2">
+                                    {formSymptoms.map((s, i) => (
+                                        <span key={i} className="inline-flex items-center gap-1.5 px-3 py-1 bg-blue-50 text-blue-700 rounded-full text-xs font-medium border border-blue-100">
+                                            {s}
+                                            <button onClick={() => removeSymptom(i)} className="text-blue-400 hover:text-red-500 transition">✕</button>
+                                        </span>
+                                    ))}
                                 </div>
                             </div>
 
                             {/* Prescriptions */}
                             <div>
-                                <label className="block text-xs font-bold text-[#475569] uppercase tracking-wider mb-2">Đơn thuốc</label>
+                                <label className="block text-xs font-bold text-[#475569] uppercase tracking-wider mb-2">💊 Đơn thuốc</label>
                                 <div className="space-y-3 mb-3 bg-[#F8FAFC] p-4 rounded-xl border border-[#E2E8F0]">
                                     <input
                                         type="text"
                                         placeholder="Tên thuốc..."
                                         value={formPrescriptionInput.name}
                                         onChange={e => setFormPrescriptionInput({ ...formPrescriptionInput, name: e.target.value })}
-                                        className="w-full px-3 py-2 bg-white border border-[#E2E8F0] rounded-lg text-sm text-[#1E293B] focus:outline-none"
+                                        className="w-full px-3 py-2 bg-white border border-[#E2E8F0] rounded-lg text-sm text-[#1E293B] focus:outline-none focus:ring-2 focus:ring-blue-100"
                                     />
                                     <div className="grid grid-cols-2 gap-2">
                                         <input
@@ -645,55 +669,35 @@ export default function MedicalRecordsPage() {
                                     <button
                                         onClick={addPrescription}
                                         type="button"
-                                        className="w-full py-2 bg-blue-600 text-white rounded-lg text-xs font-bold hover:bg-blue-700"
+                                        className="w-full py-2 bg-blue-600 text-white rounded-lg text-xs font-bold hover:bg-blue-700 transition"
                                     >
-                                        + Thêm thuốc
+                                        + Thêm thuốc vào đơn
                                     </button>
                                 </div>
                                 <div className="space-y-2">
                                     {formPrescriptions.map((p, i) => (
                                         <div key={i} className="flex items-center justify-between p-3 bg-white border border-blue-100 rounded-xl shadow-sm">
-                                            <div className="flex-1">
-                                                <p className="text-sm font-bold text-gray-800">{p.name}</p>
-                                                <p className="text-[11px] text-gray-500">{p.dosage} | {p.duration}</p>
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-8 h-8 bg-blue-50 rounded-lg flex items-center justify-center text-base">💊</div>
+                                                <div>
+                                                    <p className="text-sm font-bold text-gray-800">{p.name}</p>
+                                                    <p className="text-[11px] text-gray-500">{p.dosage} | {p.duration}</p>
+                                                </div>
                                             </div>
-                                            <button onClick={() => removePrescription(i)} className="p-1 text-red-400 hover:bg-red-50 rounded-lg">✕</button>
+                                            <button onClick={() => removePrescription(i)} className="p-1.5 text-red-400 hover:bg-red-50 rounded-lg transition">✕</button>
                                         </div>
-                                    ))}
-                                </div>
-                            </div>
-
-                            {/* Symptoms */}
-                            <div>
-                                <label className="block text-xs font-bold text-[#475569] uppercase tracking-wider mb-2">Triệu chứng</label>
-                                <div className="flex gap-2 mb-2">
-                                    <input
-                                        type="text"
-                                        value={formSymptomInput}
-                                        onChange={e => setFormSymptomInput(e.target.value)}
-                                        onKeyDown={handleSymptomKeyDown}
-                                        placeholder="Thêm triệu chứng..."
-                                        className="flex-1 px-4 py-2.5 bg-[#F8FAFC] border border-[#E2E8F0] rounded-xl text-sm text-[#1E293B] focus:outline-none"
-                                    />
-                                </div>
-                                <div className="flex flex-wrap gap-2">
-                                    {formSymptoms.map((s, i) => (
-                                        <span key={i} className="inline-flex items-center gap-1.5 px-3 py-1 bg-blue-50 text-blue-700 rounded-full text-xs font-medium">
-                                            {s}
-                                            <button onClick={() => removeSymptom(i)}>✕</button>
-                                        </span>
                                     ))}
                                 </div>
                             </div>
 
                             {/* Notes */}
                             <div>
-                                <label className="block text-xs font-bold text-[#475569] uppercase tracking-wider mb-2">Ghi chú</label>
+                                <label className="block text-xs font-bold text-[#475569] uppercase tracking-wider mb-2">📝 Ghi chú & Hướng dẫn</label>
                                 <textarea
                                     value={formNotes}
                                     onChange={e => setFormNotes(e.target.value)}
-                                    placeholder="Nhập ghi chú điều trị..."
-                                    rows={4}
+                                    placeholder="Nhập ghi chú điều trị, hướng dẫn tái khám..."
+                                    rows={3}
                                     className="w-full px-4 py-3 bg-[#F8FAFC] border border-[#E2E8F0] rounded-xl text-sm text-[#1E293B] focus:outline-none resize-none"
                                 />
                             </div>
