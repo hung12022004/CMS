@@ -68,6 +68,29 @@ const mockDoctorRecords = [
     },
 ];
 
+// Danh sách thuốc, liều dùng và hướng dẫn phổ biến (mô phỏng CSDL)
+const COMMON_MEDICINES = [
+    "Paracetamol 500mg", "Ibuprofen 400mg", "Amoxicillin 500mg",
+    "Azithromycin 500mg", "Loratadine 10mg", "Cetirizine 10mg",
+    "Omeprazole 20mg", "Pantoprazole 40mg", "Metformin 500mg",
+    "Amlodipine 5mg", "Losartan 50mg", "Vitamin C 500mg",
+    "Alpha Choay", "Oresol", "Nước muối sinh lý 0.9%"
+];
+
+const COMMON_DOSAGES = [
+    "1 viên/lần", "2 viên/lần", "1/2 viên/lần",
+    "5ml/lần", "10ml/lần", "1 gói/lần", "1 ống/lần"
+];
+
+const COMMON_INSTRUCTIONS = [
+    "Uống x 2 lần/ngày (Sáng - Tối) sau ăn",
+    "Uống x 3 lần/ngày (Sáng - Trưa - Tối) sau ăn",
+    "Uống x 1 lần/ngày (Sáng) trước ăn",
+    "Uống khi đau/sốt (cách nhau 4-6h)",
+    "Ngậm dưới lưỡi",
+    "Bôi ngoài da 2 lần/ngày"
+];
+
 export default function MedicalRecordsPage() {
     const navigate = useNavigate();
     const { user } = useAuth();
@@ -100,13 +123,27 @@ export default function MedicalRecordsPage() {
         weight: "",
         bloodPressure: "",
         heartRate: "",
-        temperature: ""
+        temperature: "",
+        spo2: ""
     });
     const [formSymptomInput, setFormSymptomInput] = useState("");
     const [formSymptoms, setFormSymptoms] = useState([]);
     const [formNotes, setFormNotes] = useState("");
     const [formPrescriptionInput, setFormPrescriptionInput] = useState({ name: "", dosage: "", duration: "", instructions: "" });
     const [formPrescriptions, setFormPrescriptions] = useState([]);
+
+    // Advanced Form State (7 Sections)
+    const [formAdminInfo, setFormAdminInfo] = useState({ occupation: "", idCard: "", address: "", relativePhone: "" });
+    const [formMedicalMgmt, setFormMedicalMgmt] = useState({ recordNumber: "", objectType: "Dịch vụ" });
+    const [formAnamnesis, setFormAnamnesis] = useState({ reason: "" });
+    const [formExamination, setFormExamination] = useState({ general: "", parts: "" });
+    const [formParaclinical, setFormParaclinical] = useState({ tests: "", imaging: "", endoscopy: "" });
+    const [formTreatment, setFormTreatment] = useState({ advice: "", followUp: "" });
+
+    // Dropdown state
+    const [showMedicineDropdown, setShowMedicineDropdown] = useState(false);
+    const [showDosageDropdown, setShowDosageDropdown] = useState(false);
+    const [showInstructionDropdown, setShowInstructionDropdown] = useState(false);
 
     const isDoctor = user?.role === "doctor";
     const isStaff = user?.role === "doctor" || user?.role === "nurse" || user?.role === "admin";
@@ -154,6 +191,20 @@ export default function MedicalRecordsPage() {
             patientRefs.current[selectedPatientId].scrollIntoView({ behavior: 'smooth', block: 'nearest' });
         }
     }, [selectedPatientId]);
+
+    // Hàm trợ giúp parse thông tin từ form nâng cao
+    const getParsedNotes = (notes) => {
+        if (!notes) return null;
+        try {
+            const parsed = JSON.parse(notes);
+            if (parsed && typeof parsed === 'object' && (parsed.anamnesis || parsed.history)) {
+                return parsed;
+            }
+            return null;
+        } catch (e) {
+            return null;
+        }
+    };
 
     const formatDate = (dateStr) => {
         const date = new Date(dateStr);
@@ -225,12 +276,27 @@ export default function MedicalRecordsPage() {
         const today = new Date();
         const dateStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
 
+        const advancedNotes = JSON.stringify({
+            adminInfo: formAdminInfo,
+            medicalMgmt: formMedicalMgmt,
+            anamnesis: formAnamnesis,
+            examination: formExamination,
+            paraclinical: formParaclinical,
+            treatment: formTreatment,
+            generalNotes: formNotes
+        });
+        
+        const finalSymptoms = [...formSymptoms];
+        if (formSymptomInput.trim() && !finalSymptoms.includes(formSymptomInput.trim())) {
+            finalSymptoms.push(formSymptomInput.trim());
+        }
+
         try {
             const res = await createMedicalRecordApi({
                 patientId: targetPatientId,
                 diagnosis: formDiagnosis.trim(),
-                symptoms: formSymptoms,
-                notes: formNotes.trim(),
+                symptoms: finalSymptoms,
+                notes: advancedNotes,
                 date: dateStr,
                 vitals: formVitals,
                 status: formStatus,
@@ -261,8 +327,14 @@ export default function MedicalRecordsPage() {
                 setFormSymptoms([]);
                 setFormSymptomInput("");
                 setFormNotes("");
-                setFormVitals({ weight: "", bloodPressure: "", heartRate: "", temperature: "" });
+                setFormVitals({ weight: "", bloodPressure: "", heartRate: "", temperature: "", spo2: "" });
                 setFormPrescriptions([]);
+                setFormAdminInfo({ occupation: "", idCard: "", address: "", relativePhone: "" });
+                setFormMedicalMgmt({ recordNumber: "", objectType: "Dịch vụ" });
+                setFormAnamnesis({ reason: "" });
+                setFormExamination({ general: "", parts: "" });
+                setFormParaclinical({ tests: "", imaging: "", endoscopy: "" });
+                setFormTreatment({ advice: "", followUp: "" });
                 setShowForm(false);
             }
         } catch (err) {
@@ -298,51 +370,61 @@ export default function MedicalRecordsPage() {
                                                     {record.status || "Hoàn thành"}
                                                 </span>
                                             </div>
-                                            <div className="space-y-4">
-                                                {record.symptoms && record.symptoms.length > 0 && (
+                                            {(() => {
+                                                const parsed = getParsedNotes(record.notes);
+                                                if (parsed && parsed.anamnesis) {
+                                                    return (
+                                                        <div className="mt-4 space-y-4 mb-4">
+                                                            <div className="text-sm">
+                                                                <p className="font-semibold text-gray-800 border-b pb-1 mb-2">Hỏi bệnh & Thăm khám</p>
+                                                                <p className="text-gray-600 mb-1"><span className="text-gray-500">Lý do khám:</span> {parsed.anamnesis?.reason}</p>
+                                                                <p className="text-gray-600 mb-1"><span className="text-gray-500">Khám bộ phận:</span> {parsed.examination?.parts}</p>
+                                                            </div>
+                                                            <div className="text-sm">
+                                                                <p className="font-semibold text-gray-800 border-b pb-1 mb-2">Điều trị & Theo dõi</p>
+                                                                <p className="text-gray-600 mb-1"><span className="text-gray-500">Lời dặn:</span> {parsed.treatment?.advice}</p>
+                                                                <p className="text-gray-600"><span className="text-gray-500">Hẹn tái khám:</span> {parsed.treatment?.followUp}</p>
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                } else if (parsed && parsed.history) {
+                                                    return (
+                                                        <div className="mt-4 space-y-4 mb-4">
+                                                            <div className="text-sm">
+                                                                <p className="font-semibold text-gray-800 border-b pb-1 mb-2">Thăm khám lâm sàng</p>
+                                                                <p className="text-gray-600 mb-1"><span className="text-gray-500">Lý do khám:</span> {parsed.clinical?.reason}</p>
+                                                                <p className="text-gray-600 mb-1"><span className="text-gray-500">Khám bộ phận:</span> {parsed.clinical?.examination}</p>
+                                                            </div>
+                                                            <div className="text-sm">
+                                                                <p className="font-semibold text-gray-800 border-b pb-1 mb-2">Cận lâm sàng</p>
+                                                                <p className="text-gray-600 mb-1"><span className="text-gray-500">Xét nghiệm:</span> {parsed.paraclinical?.tests || "Không có"}</p>
+                                                                <p className="text-gray-600 mb-1"><span className="text-gray-500">Hình ảnh/TDCN:</span> {parsed.paraclinical?.imaging || "Không có"}</p>
+                                                            </div>
+                                                            <div className="text-sm">
+                                                                <p className="font-semibold text-gray-800 border-b pb-1 mb-2">Điều trị & Chăm sóc</p>
+                                                                <p className="text-gray-600 mb-1"><span className="text-gray-500">Phương pháp:</span> {parsed.treatmentMethod}</p>
+                                                                <p className="text-gray-600"><span className="text-gray-500">Hướng dẫn:</span> {parsed.careInstructions}</p>
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                }
+                                                return <p className="text-gray-600 text-sm mb-4">{record.notes}</p>;
+                                            })()}
+                                            
+                                            {record.symptoms && record.symptoms.length > 0 && (
+                                                <div className="mt-4 pt-4 border-t border-gray-100">
+                                                    <h4 className="text-sm font-bold text-gray-800 mb-2 flex items-center gap-2">
+                                                        🏷️ Triệu chứng:
+                                                    </h4>
                                                     <div className="flex flex-wrap gap-2">
                                                         {record.symptoms.map((s, i) => (
-                                                            <span key={i} className="px-2.5 py-1 bg-slate-100 text-slate-600 rounded-lg text-[10px] font-medium border border-slate-200">
+                                                            <span key={i} className="px-3 py-1 bg-blue-50 border border-blue-100 text-blue-700 rounded-full text-xs font-medium">
                                                                 {s}
                                                             </span>
                                                         ))}
                                                     </div>
-                                                )}
-
-                                                <div className="bg-slate-50 border border-slate-100 rounded-xl p-4">
-                                                    <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Ghi chú & Nhận xét</p>
-                                                    <p className="text-gray-700 text-sm leading-relaxed">{record.notes || "Không có ghi chú thêm."}</p>
                                                 </div>
-
-                                                {record.vitals && (record.vitals.weight || record.vitals.bloodPressure || record.vitals.heartRate || record.vitals.temperature) && (
-                                                    <div className="grid grid-cols-4 gap-2">
-                                                        {record.vitals.weight && (
-                                                            <div className="bg-white border border-gray-100 p-2 rounded-lg text-center">
-                                                                <p className="text-[8px] text-gray-400 uppercase font-bold">Cân nặng</p>
-                                                                <p className="text-xs font-bold text-gray-700">{record.vitals.weight}kg</p>
-                                                            </div>
-                                                        )}
-                                                        {record.vitals.bloodPressure && (
-                                                            <div className="bg-white border border-gray-100 p-2 rounded-lg text-center">
-                                                                <p className="text-[8px] text-gray-400 uppercase font-bold">Huyết áp</p>
-                                                                <p className="text-xs font-bold text-gray-700">{record.vitals.bloodPressure}</p>
-                                                            </div>
-                                                        )}
-                                                        {record.vitals.heartRate && (
-                                                            <div className="bg-white border border-gray-100 p-2 rounded-lg text-center">
-                                                                <p className="text-[8px] text-gray-400 uppercase font-bold">Nhịp tim</p>
-                                                                <p className="text-xs font-bold text-gray-700">{record.vitals.heartRate}</p>
-                                                            </div>
-                                                        )}
-                                                        {record.vitals.temperature && (
-                                                            <div className="bg-white border border-gray-100 p-2 rounded-lg text-center">
-                                                                <p className="text-[8px] text-gray-400 uppercase font-bold">Nhiệt độ</p>
-                                                                <p className="text-xs font-bold text-gray-700">{record.vitals.temperature}°C</p>
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                )}
-                                            </div>
+                                            )}
                                             
                                             {record.prescriptions && record.prescriptions.length > 0 && (
                                                 <div className="mt-4 pt-4 border-t border-gray-100">
@@ -354,8 +436,8 @@ export default function MedicalRecordsPage() {
                                                             <div key={i} className="text-xs text-gray-600 bg-gray-50 p-2 rounded-lg flex justify-between items-center">
                                                                 <div>
                                                                     <span className="font-bold text-blue-600">{p.name}</span>
-                                                                    <span className="mx-2">•</span>
-                                                                    <span>{p.dosage}</span>
+                                                                    <span className="mx-2 text-gray-400">•</span>
+                                                                    <span>{p.dosage} {p.instructions ? `- ${p.instructions}` : ''}</span>
                                                                 </div>
                                                                 <span className="text-[10px] bg-blue-100 text-blue-600 px-2 py-0.5 rounded-full font-bold">{p.duration}</span>
                                                             </div>
@@ -543,7 +625,7 @@ export default function MedicalRecordsPage() {
             </div>
 
             {/* Right: Record Detail OR Form */}
-            <div className={`w-[450px] bg-white border-l transition-all duration-300 flex flex-col shadow-xl ${(showForm || selectedRecordId) ? "mr-0" : "-mr-[450px]"}`}>
+            <div className={`w-[600px] bg-white border-l transition-all duration-300 flex flex-col shadow-xl ${(showForm || selectedRecordId) ? "mr-0" : "-mr-[600px]"}`}>
                 {showForm ? (
                     <>
                         {/* Professional form header */}
@@ -565,31 +647,34 @@ export default function MedicalRecordsPage() {
                             </div>
                         </div>
 
-                        <div className="flex-1 overflow-y-auto p-5 space-y-6">
-                            {/* Diagnosis */}
-                            <div>
-                                <label className="block text-xs font-bold text-[#475569] uppercase tracking-wider mb-2">Kết quả khám / Chẩn đoán *</label>
-                                <input
-                                    type="text"
-                                    value={formDiagnosis}
-                                    onChange={e => setFormDiagnosis(e.target.value)}
-                                    placeholder="VD: Viêm họng cấp, Tình trạng ổn định..."
-                                    className="w-full px-4 py-3 bg-[#F8FAFC] border border-[#E2E8F0] rounded-xl text-sm text-[#1E293B] focus:outline-none focus:ring-2 focus:ring-blue-100"
-                                />
-                            </div>
-
-                            {/* Status */}
-                            <div>
-                                <label className="block text-xs font-bold text-[#475569] uppercase tracking-wider mb-2">Trạng thái hồ sơ *</label>
-                                <select
-                                    value={formStatus}
-                                    onChange={e => setFormStatus(e.target.value)}
-                                    className="w-full px-4 py-3 bg-[#F8FAFC] border border-[#E2E8F0] rounded-xl text-sm text-[#1E293B] focus:outline-none"
-                                >
-                                    <option value="Hoàn thành">✅ Hoàn thành</option>
-                                    <option value="Đang điều trị">🏥 Đang điều trị</option>
-                                    <option value="Chờ kết quả">⏳ Chờ kết quả</option>
-                                </select>
+                        <div className="flex-1 overflow-y-auto p-5 bg-[#F8FAFC]">
+                            {/* I. Hành chính */}
+                            <div className="bg-white border border-gray-200 rounded-xl p-5 mb-5 shadow-sm">
+                                <h3 className="text-sm font-bold text-blue-800 uppercase tracking-wide mb-4">I. Hành chính</h3>
+                                <div className="grid grid-cols-2 gap-4 text-sm mb-4">
+                                    <div><span className="text-gray-500 block text-xs mb-1">Họ tên</span> <span className="font-semibold text-gray-900">{selectedPatient?.name}</span></div>
+                                    <div><span className="text-gray-500 block text-xs mb-1">Giới tính</span> <span className="font-semibold text-gray-900">{selectedPatient?.gender === "male" ? "Nam" : selectedPatient?.gender === "female" ? "Nữ" : "Khác"}</span></div>
+                                    <div><span className="text-gray-500 block text-xs mb-1">Ngày sinh</span> <span className="font-semibold text-gray-900">{"Chưa cập nhật"}</span></div>
+                                    <div><span className="text-gray-500 block text-xs mb-1">SĐT BN</span> <span className="font-semibold text-gray-900">{selectedPatient?.phoneNumber || "Chưa cập nhật"}</span></div>
+                                </div>
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div>
+                                        <label className="text-xs font-semibold text-gray-600 block mb-1">Nghề nghiệp</label>
+                                        <input type="text" value={formAdminInfo.occupation} onChange={e => setFormAdminInfo({...formAdminInfo, occupation: e.target.value})} className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 focus:ring-1 focus:ring-blue-500 outline-none placeholder-gray-400" />
+                                    </div>
+                                    <div>
+                                        <label className="text-xs font-semibold text-gray-600 block mb-1">Số CCCD</label>
+                                        <input type="text" value={formAdminInfo.idCard} onChange={e => setFormAdminInfo({...formAdminInfo, idCard: e.target.value})} className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 focus:ring-1 focus:ring-blue-500 outline-none placeholder-gray-400" />
+                                    </div>
+                                    <div className="col-span-2">
+                                        <label className="text-xs font-semibold text-gray-600 block mb-1">Địa chỉ</label>
+                                        <input type="text" value={formAdminInfo.address} onChange={e => setFormAdminInfo({...formAdminInfo, address: e.target.value})} className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 focus:ring-1 focus:ring-blue-500 outline-none placeholder-gray-400" />
+                                    </div>
+                                    <div className="col-span-2">
+                                        <label className="text-xs font-semibold text-gray-600 block mb-1">SĐT người thân (khi cần)</label>
+                                        <input type="text" value={formAdminInfo.relativePhone} onChange={e => setFormAdminInfo({...formAdminInfo, relativePhone: e.target.value})} className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 focus:ring-1 focus:ring-blue-500 outline-none placeholder-gray-400" />
+                                    </div>
+                                </div>
                             </div>
 
                             {/* Vitals */}
@@ -686,7 +771,12 @@ export default function MedicalRecordsPage() {
                                             </div>
                                             <button onClick={() => removePrescription(i)} className="p-1.5 text-red-400 hover:bg-red-50 rounded-lg transition">✕</button>
                                         </div>
-                                    ))}
+                                    </div>
+
+                                    <div>
+                                        <label className="text-xs font-semibold text-gray-600 block mb-1">3. Khám bộ phận</label>
+                                        <textarea value={formExamination.parts} onChange={e => setFormExamination({...formExamination, parts: e.target.value})} rows={3} className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 focus:ring-1 focus:ring-blue-500 outline-none resize-none placeholder-gray-400" placeholder="Khám cơ quan bị bệnh và các cơ quan liên quan..." />
+                                    </div>
                                 </div>
                             </div>
 
@@ -725,112 +815,316 @@ export default function MedicalRecordsPage() {
                                         <h2 className="text-xl font-bold text-[#1E293B]">Chi tiết hồ sơ</h2>
                                         <p className="text-xs text-[#64748B] mt-1">{formatDate(record.date)}</p>
                                     </div>
-                                    <button onClick={() => setSelectedRecordId(null)} className="text-[#94A3B8] hover:text-[#475569]">
+                                    <button onClick={() => setSelectedRecordId(null)} className="text-[#94A3B8] hover:text-[#475569] text-sm flex items-center gap-1">
                                         ✕ Đóng
                                     </button>
                                 </div>
 
-                                <div className="flex-1 overflow-y-auto p-5 space-y-8">
-                                    {/* Diagnosis & Status */}
-                                    <div className="bg-blue-50/50 border border-blue-100 rounded-2xl p-5">
-                                        <div className="flex justify-between items-start mb-4">
-                                            <span className="text-[10px] font-bold text-blue-600 uppercase tracking-widest">Chẩn đoán</span>
-                                            <span className="px-3 py-1 bg-emerald-100 text-emerald-700 text-[10px] font-bold rounded-full uppercase">
-                                                {record.status || "Hoàn thành"}
-                                            </span>
-                                        </div>
-                                        <h3 className="text-xl font-bold text-[#1E293B] leading-tight">{record.diagnosis}</h3>
-                                        <div className="mt-4 pt-4 border-t border-blue-100/50 flex items-center gap-3">
-                                            <div className="w-8 h-8 rounded-full bg-white shadow-sm flex items-center justify-center text-xs font-bold text-blue-600">
-                                                {record.doctorId?.name?.[0] || "B"}
-                                            </div>
-                                            <div>
-                                                <p className="text-[10px] text-[#64748B] uppercase font-bold tracking-tighter">Bác sĩ điều trị</p>
-                                                <p className="text-sm font-semibold text-[#334155]">{record.doctorId?.name || "Bác sĩ"}</p>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    {/* Vitals */}
-                                    {record.vitals && (
-                                        <div>
-                                            <h3 className="text-xs font-bold text-[#475569] uppercase tracking-wider mb-4 flex items-center gap-2">
-                                                <span className="w-1.5 h-4 bg-blue-500 rounded-full"></span>
-                                                Chỉ số sinh tồn
-                                            </h3>
-                                            <div className="grid grid-cols-2 gap-3">
-                                                <div className="bg-[#F8FAFC] border border-[#E2E8F0] p-4 rounded-2xl">
-                                                    <p className="text-[10px] text-[#94A3B8] font-bold uppercase mb-1">Cân nặng</p>
-                                                    <p className="text-lg font-bold text-[#1E293B]">{record.vitals.weight || "--"} <span className="text-xs font-normal">kg</span></p>
-                                                </div>
-                                                <div className="bg-[#F8FAFC] border border-[#E2E8F0] p-4 rounded-2xl">
-                                                    <p className="text-[10px] text-[#94A3B8] font-bold uppercase mb-1">Huyết áp</p>
-                                                    <p className="text-lg font-bold text-[#1E293B]">{record.vitals.bloodPressure || "--"} <span className="text-xs font-normal">mmHg</span></p>
-                                                </div>
-                                                <div className="bg-[#F8FAFC] border border-[#E2E8F0] p-4 rounded-2xl">
-                                                    <p className="text-[10px] text-[#94A3B8] font-bold uppercase mb-1">Nhịp tim</p>
-                                                    <p className="text-lg font-bold text-[#1E293B]">{record.vitals.heartRate || "--"} <span className="text-xs font-normal">bpm</span></p>
-                                                </div>
-                                                <div className="bg-[#F8FAFC] border border-[#E2E8F0] p-4 rounded-2xl">
-                                                    <p className="text-[10px] text-[#94A3B8] font-bold uppercase mb-1">Nhiệt độ</p>
-                                                    <p className="text-lg font-bold text-[#1E293B]">{record.vitals.temperature || "--"} <span className="text-xs font-normal">°C</span></p>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    )}
-
-                                    {/* Prescriptions Integration */}
-                                    <div>
-                                        <h3 className="text-xs font-bold text-[#475569] uppercase tracking-wider mb-4 flex items-center gap-2">
-                                            <span className="w-1.5 h-4 bg-emerald-500 rounded-full"></span>
-                                            Đơn thuốc điều trị
-                                        </h3>
-                                        <div className="space-y-3">
-                                            {record.prescriptions && record.prescriptions.length > 0 ? (
-                                                record.prescriptions.map((p, i) => (
-                                                    <div key={i} className="bg-white border border-gray-100 shadow-sm rounded-2xl p-4 flex items-center justify-between group hover:border-blue-200 transition-all">
-                                                        <div className="flex items-center gap-4">
-                                                            <div className="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center text-xl">💊</div>
-                                                            <div>
-                                                                <p className="font-bold text-[#1E293B] group-hover:text-blue-600 transition-colors">{p.name}</p>
-                                                                <p className="text-xs text-[#64748B]">{p.instructions || p.dosage}</p>
-                                                            </div>
+                                <div className="flex-1 overflow-y-auto p-5 bg-[#F8FAFC]">
+                                    {(() => {
+                                        const parsedNotes = getParsedNotes(record.notes);
+                                        
+                                        if (parsedNotes && parsedNotes.anamnesis) {
+                                            return (
+                                                <>
+                                                    {/* I. Hành chính */}
+                                                    <div className="bg-white border border-gray-200 rounded-xl p-5 mb-5 shadow-sm">
+                                                        <h3 className="text-sm font-bold text-blue-800 uppercase tracking-wide mb-4">I. Hành chính</h3>
+                                                        <div className="grid grid-cols-2 gap-4 text-sm mb-4">
+                                                            <div><span className="text-gray-500 block text-xs mb-1">Họ tên</span> <span className="font-semibold text-gray-900">{record.patientId?.name || "Bệnh nhân"}</span></div>
+                                                            <div><span className="text-gray-500 block text-xs mb-1">Giới tính</span> <span className="font-semibold text-gray-900">{record.patientId?.gender === "male" ? "Nam" : record.patientId?.gender === "female" ? "Nữ" : "Khác"}</span></div>
+                                                            <div><span className="text-gray-500 block text-xs mb-1">Ngày sinh</span> <span className="font-semibold text-gray-900">Chưa cập nhật</span></div>
+                                                            <div><span className="text-gray-500 block text-xs mb-1">SĐT BN</span> <span className="font-semibold text-gray-900">{record.patientId?.phoneNumber || "Chưa cập nhật"}</span></div>
                                                         </div>
-                                                        <div className="text-right">
-                                                            <span className="px-3 py-1 bg-blue-50 text-blue-600 text-[10px] font-bold rounded-full">{p.duration}</span>
+                                                        <div className="grid grid-cols-2 gap-3 text-sm border-t border-gray-100 pt-4">
+                                                            <div><span className="text-gray-500 block text-xs mb-1">Nghề nghiệp</span> <span className="font-semibold text-gray-900">{parsedNotes.adminInfo?.occupation || "—"}</span></div>
+                                                            <div><span className="text-gray-500 block text-xs mb-1">Số CCCD</span> <span className="font-semibold text-gray-900">{parsedNotes.adminInfo?.idCard || "—"}</span></div>
+                                                            <div className="col-span-2"><span className="text-gray-500 block text-xs mb-1">Địa chỉ</span> <span className="font-semibold text-gray-900">{parsedNotes.adminInfo?.address || "—"}</span></div>
+                                                            <div className="col-span-2"><span className="text-gray-500 block text-xs mb-1">SĐT người thân (khi cần)</span> <span className="font-semibold text-gray-900">{parsedNotes.adminInfo?.relativePhone || "—"}</span></div>
                                                         </div>
                                                     </div>
-                                                ))
-                                            ) : (
-                                                <p className="text-sm text-[#94A3B8] italic text-center py-4 bg-gray-50 rounded-2xl">Không có đơn thuốc cho hồ sơ này</p>
-                                            )}
-                                        </div>
-                                    </div>
 
-                                    {/* Symptoms & Notes */}
-                                    <div className="grid grid-cols-1 gap-6">
-                                        {record.symptoms && record.symptoms.length > 0 && (
-                                            <div>
-                                                <h3 className="text-[10px] font-bold text-[#94A3B8] uppercase tracking-widest mb-3">Triệu chứng</h3>
-                                                <div className="flex flex-wrap gap-2">
-                                                    {record.symptoms.map((s, i) => (
-                                                        <span key={i} className="px-3 py-1 bg-slate-100 text-slate-600 rounded-lg text-xs font-medium">
-                                                            {s}
-                                                        </span>
-                                                    ))}
-                                                </div>
-                                            </div>
-                                        )}
+                                                    {/* II. Quản lý y tế */}
+                                                    <div className="bg-white border border-gray-200 rounded-xl p-5 mb-5 shadow-sm">
+                                                        <h3 className="text-sm font-bold text-blue-800 uppercase tracking-wide mb-4">II. Quản lý y tế</h3>
+                                                        <div className="grid grid-cols-2 gap-4 text-sm mb-4">
+                                                            <div><span className="text-gray-500 block text-xs mb-1">Mã số bệnh nhân (ID)</span> <span className="font-semibold text-gray-900">{record.patientId?._id ? record.patientId._id.substring(0, 8) + "..." : "—"}</span></div>
+                                                            <div><span className="text-gray-500 block text-xs mb-1">Ngày giờ khám</span> <span className="font-semibold text-gray-900">{formatDate(record.date)}</span></div>
+                                                        </div>
+                                                        <div className="grid grid-cols-2 gap-3 text-sm border-t border-gray-100 pt-4">
+                                                            <div><span className="text-gray-500 block text-xs mb-1">Số hồ sơ</span> <span className="font-semibold text-gray-900">{parsedNotes.medicalMgmt?.recordNumber || "—"}</span></div>
+                                                            <div><span className="text-gray-500 block text-xs mb-1">Đối tượng</span> <span className="font-semibold text-gray-900">{parsedNotes.medicalMgmt?.objectType || "Dịch vụ"}</span></div>
+                                                        </div>
+                                                    </div>
+
+                                                    {/* III. Hỏi bệnh */}
+                                                    <div className="bg-white border border-gray-200 rounded-xl p-5 mb-5 shadow-sm">
+                                                        <h3 className="text-sm font-bold text-blue-800 uppercase tracking-wide mb-4">III. Hỏi bệnh</h3>
+                                                        <div className="text-sm">
+                                                            <span className="text-gray-500 block text-xs mb-1">Lý do đến khám</span> 
+                                                            <p className="font-semibold text-gray-900 whitespace-pre-wrap">{parsedNotes.anamnesis?.reason || "—"}</p>
+                                                        </div>
+                                                    </div>
+
+                                                    {/* IV. Thăm khám */}
+                                                    <div className="bg-white border border-gray-200 rounded-xl p-5 mb-5 shadow-sm">
+                                                        <h3 className="text-sm font-bold text-blue-800 uppercase tracking-wide mb-4">IV. Thăm khám</h3>
+                                                        <div className="space-y-4 text-sm">
+                                                            <div>
+                                                                <span className="text-gray-500 block text-xs mb-1">1. Tình trạng</span> 
+                                                                <p className="font-semibold text-gray-900 whitespace-pre-wrap">{parsedNotes.examination?.general || "—"}</p>
+                                                            </div>
+                                                            
+                                                            <div>
+                                                                <span className="text-gray-500 block text-xs mb-2">2. Chỉ số sinh tồn</span>
+                                                                <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
+                                                                    <div className="bg-gray-50 p-2 rounded-lg border border-gray-100"><span className="text-gray-500 text-[10px] uppercase font-bold block mb-1">Mạch</span><span className="font-bold text-gray-900">{record.vitals?.heartRate || "—"} <span className="text-xs font-normal text-gray-500">lần/phút</span></span></div>
+                                                                    <div className="bg-gray-50 p-2 rounded-lg border border-gray-100"><span className="text-gray-500 text-[10px] uppercase font-bold block mb-1">HA</span><span className="font-bold text-gray-900">{record.vitals?.bloodPressure || "—"} <span className="text-xs font-normal text-gray-500">mmHg</span></span></div>
+                                                                    <div className="bg-gray-50 p-2 rounded-lg border border-gray-100"><span className="text-gray-500 text-[10px] uppercase font-bold block mb-1">Nhiệt độ</span><span className="font-bold text-gray-900">{record.vitals?.temperature || "—"} <span className="text-xs font-normal text-gray-500">°C</span></span></div>
+                                                                    <div className="bg-gray-50 p-2 rounded-lg border border-gray-100"><span className="text-gray-500 text-[10px] uppercase font-bold block mb-1">SpO2</span><span className="font-bold text-gray-900">{record.vitals?.spo2 || "—"} <span className="text-xs font-normal text-gray-500">%</span></span></div>
+                                                                    <div className="bg-gray-50 p-2 rounded-lg border border-gray-100"><span className="text-gray-500 text-[10px] uppercase font-bold block mb-1">Cân nặng</span><span className="font-bold text-gray-900">{record.vitals?.weight || "—"} <span className="text-xs font-normal text-gray-500">kg</span></span></div>
+                                                                </div>
+                                                            </div>
+
+                                                            <div>
+                                                                <span className="text-gray-500 block text-xs mb-1">3. Khám bộ phận</span> 
+                                                                <p className="font-semibold text-gray-900 whitespace-pre-wrap">{parsedNotes.examination?.parts || "—"}</p>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+
+                                                    {/* V. Cận lâm sàng */}
+                                                    <div className="bg-white border border-gray-200 rounded-xl p-5 mb-5 shadow-sm">
+                                                        <h3 className="text-sm font-bold text-blue-800 uppercase tracking-wide mb-4">V. Cận lâm sàng</h3>
+                                                        <div className="space-y-4 text-sm">
+                                                            <div>
+                                                                <span className="text-gray-500 block text-xs mb-1">Xét nghiệm (Máu, nước tiểu...)</span> 
+                                                                <p className="font-semibold text-gray-900 whitespace-pre-wrap">{parsedNotes.paraclinical?.tests || "—"}</p>
+                                                            </div>
+                                                            <div>
+                                                                <span className="text-gray-500 block text-xs mb-1">Chẩn đoán hình ảnh</span> 
+                                                                <p className="font-semibold text-gray-900 whitespace-pre-wrap">{parsedNotes.paraclinical?.imaging || "—"}</p>
+                                                            </div>
+                                                            <div>
+                                                                <span className="text-gray-500 block text-xs mb-1">Nội soi</span> 
+                                                                <p className="font-semibold text-gray-900 whitespace-pre-wrap">{parsedNotes.paraclinical?.endoscopy || "—"}</p>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+
+                                                    {/* VI. Tổng kết bệnh */}
+                                                    <div className="bg-white border border-gray-200 rounded-xl p-5 mb-5 shadow-sm">
+                                                        <h3 className="text-sm font-bold text-blue-800 uppercase tracking-wide mb-4">VI. Tổng kết bệnh</h3>
+                                                        <div className="space-y-4 text-sm">
+                                                            <div>
+                                                                <span className="text-gray-500 block text-xs mb-1">Chẩn đoán bệnh</span> 
+                                                                <p className="font-bold text-gray-900 text-lg text-blue-700">{record.diagnosis}</p>
+                                                            </div>
+                                                            <div>
+                                                                <span className="text-gray-500 block text-xs mb-1">Trạng thái hồ sơ</span> 
+                                                                <span className="inline-block px-3 py-1 bg-emerald-50 text-emerald-700 font-bold text-xs rounded-full border border-emerald-200 uppercase">{record.status || "Hoàn thành"}</span>
+                                                            </div>
+                                                            <div>
+                                                                <span className="text-gray-500 block text-xs mb-2">Triệu chứng nổi bật (Tags)</span> 
+                                                                <div className="flex flex-wrap gap-2">
+                                                                    {record.symptoms?.length > 0 ? record.symptoms.map((s, i) => (
+                                                                        <span key={i} className="px-3 py-1 bg-blue-50 border border-blue-100 text-blue-700 rounded-full text-xs font-medium">
+                                                                            {s}
+                                                                        </span>
+                                                                    )) : <span className="text-gray-900 font-semibold">—</span>}
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+
+                                                    {/* VII. Điều trị & Theo dõi */}
+                                                    <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
+                                                        <h3 className="text-sm font-bold text-blue-800 uppercase tracking-wide mb-4">VII. Điều trị & Theo dõi</h3>
+                                                        <div className="space-y-4 text-sm">
+                                                            <div>
+                                                                <span className="text-gray-500 block text-xs mb-2">1. Đơn thuốc</span> 
+                                                                {record.prescriptions && record.prescriptions.length > 0 ? (
+                                                                    <div className="space-y-2">
+                                                                        {record.prescriptions.map((p, i) => (
+                                                                            <div key={i} className="flex items-center justify-between p-3 bg-gray-50 border border-gray-200 rounded-xl">
+                                                                                <div className="flex-1">
+                                                                                    <p className="text-sm font-bold text-gray-800">{p.name}</p>
+                                                                                    <p className="text-[11px] text-gray-500">{p.dosage} • {p.duration}</p>
+                                                                                    {p.instructions && <p className="text-[11px] text-gray-500 italic">HD: {p.instructions}</p>}
+                                                                                </div>
+                                                                            </div>
+                                                                        ))}
+                                                                    </div>
+                                                                ) : (
+                                                                    <p className="font-semibold text-gray-900">—</p>
+                                                                )}
+                                                            </div>
+                                                            <div>
+                                                                <span className="text-gray-500 block text-xs mb-1">2. Lời dặn bác sĩ</span> 
+                                                                <p className="font-semibold text-gray-900 whitespace-pre-wrap">{parsedNotes.treatment?.advice || "—"}</p>
+                                                            </div>
+                                                            <div>
+                                                                <span className="text-gray-500 block text-xs mb-1">3. Hẹn tái khám</span> 
+                                                                <p className="font-semibold text-gray-900 whitespace-pre-wrap">{parsedNotes.treatment?.followUp || "—"}</p>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </>
+                                            );
+                                        }
                                         
-                                        <div>
-                                            <h3 className="text-[10px] font-bold text-[#94A3B8] uppercase tracking-widest mb-3">Ghi chú bác sĩ</h3>
-                                            <div className="bg-slate-50 border border-slate-100 rounded-2xl p-4">
-                                                <p className="text-sm text-[#475569] leading-relaxed italic">
-                                                    "{record.notes || "Không có ghi chú thêm"}"
-                                                </p>
+                                        // Fallback cho định dạng hồ sơ cũ (Legacy)
+                                        return (
+                                            <div className="space-y-8">
+                                                {/* Diagnosis & Status */}
+                                                <div className="bg-blue-50/50 border border-blue-100 rounded-2xl p-5">
+                                                    <div className="flex justify-between items-start mb-4">
+                                                        <span className="text-[10px] font-bold text-blue-600 uppercase tracking-widest">Chẩn đoán</span>
+                                                        <span className="px-3 py-1 bg-emerald-100 text-emerald-700 text-[10px] font-bold rounded-full uppercase">
+                                                            {record.status || "Hoàn thành"}
+                                                        </span>
+                                                    </div>
+                                                    <h3 className="text-xl font-bold text-[#1E293B] leading-tight">{record.diagnosis}</h3>
+                                                    <div className="mt-4 pt-4 border-t border-blue-100/50 flex items-center gap-3">
+                                                        <div className="w-8 h-8 rounded-full bg-white shadow-sm flex items-center justify-center text-xs font-bold text-blue-600">
+                                                            {record.doctorId?.name?.[0] || "B"}
+                                                        </div>
+                                                        <div>
+                                                            <p className="text-[10px] text-[#64748B] uppercase font-bold tracking-tighter">Bác sĩ điều trị</p>
+                                                            <p className="text-sm font-semibold text-[#334155]">{record.doctorId?.name || "Bác sĩ"}</p>
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                {/* Vitals */}
+                                                {record.vitals && (
+                                                    <div>
+                                                        <h3 className="text-xs font-bold text-[#475569] uppercase tracking-wider mb-4 flex items-center gap-2">
+                                                            <span className="w-1.5 h-4 bg-blue-500 rounded-full"></span>
+                                                            Chỉ số sinh tồn
+                                                        </h3>
+                                                        <div className="grid grid-cols-2 gap-3">
+                                                            <div className="bg-[#F8FAFC] border border-[#E2E8F0] p-4 rounded-2xl">
+                                                                <p className="text-[10px] text-[#94A3B8] font-bold uppercase mb-1">Cân nặng</p>
+                                                                <p className="text-lg font-bold text-[#1E293B]">{record.vitals.weight || "--"} <span className="text-xs font-normal">kg</span></p>
+                                                            </div>
+                                                            <div className="bg-[#F8FAFC] border border-[#E2E8F0] p-4 rounded-2xl">
+                                                                <p className="text-[10px] text-[#94A3B8] font-bold uppercase mb-1">Huyết áp</p>
+                                                                <p className="text-lg font-bold text-[#1E293B]">{record.vitals.bloodPressure || "--"} <span className="text-xs font-normal">mmHg</span></p>
+                                                            </div>
+                                                            <div className="bg-[#F8FAFC] border border-[#E2E8F0] p-4 rounded-2xl">
+                                                                <p className="text-[10px] text-[#94A3B8] font-bold uppercase mb-1">Nhịp tim</p>
+                                                                <p className="text-lg font-bold text-[#1E293B]">{record.vitals.heartRate || "--"} <span className="text-xs font-normal">bpm</span></p>
+                                                            </div>
+                                                            <div className="bg-[#F8FAFC] border border-[#E2E8F0] p-4 rounded-2xl">
+                                                                <p className="text-[10px] text-[#94A3B8] font-bold uppercase mb-1">Nhiệt độ</p>
+                                                                <p className="text-lg font-bold text-[#1E293B]">{record.vitals.temperature || "--"} <span className="text-xs font-normal">°C</span></p>
+                                                            </div>
+                                                            <div className="bg-[#F8FAFC] border border-[#E2E8F0] p-4 rounded-2xl">
+                                                                <p className="text-[10px] text-[#94A3B8] font-bold uppercase mb-1">SpO2</p>
+                                                                <p className="text-lg font-bold text-[#1E293B]">{record.vitals.spo2 || "--"} <span className="text-xs font-normal">%</span></p>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                )}
+
+                                                {/* Prescriptions Integration */}
+                                                <div>
+                                                    <h3 className="text-xs font-bold text-[#475569] uppercase tracking-wider mb-4 flex items-center gap-2">
+                                                        <span className="w-1.5 h-4 bg-emerald-500 rounded-full"></span>
+                                                        Đơn thuốc điều trị
+                                                    </h3>
+                                                    <div className="space-y-3">
+                                                        {record.prescriptions && record.prescriptions.length > 0 ? (
+                                                            record.prescriptions.map((p, i) => (
+                                                                <div key={i} className="bg-white border border-gray-100 shadow-sm rounded-2xl p-4 flex items-center justify-between group hover:border-blue-200 transition-all">
+                                                                    <div className="flex items-center gap-4">
+                                                                        <div className="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center text-xl">💊</div>
+                                                                        <div>
+                                                                            <p className="font-bold text-[#1E293B] group-hover:text-blue-600 transition-colors">{p.name}</p>
+                                                                            <p className="text-xs text-[#64748B]">{p.dosage}</p>
+                                                                            {p.instructions && <p className="text-[10px] text-gray-500 italic mt-0.5">{p.instructions}</p>}
+                                                                        </div>
+                                                                    </div>
+                                                                    <div className="text-right">
+                                                                        <span className="px-3 py-1 bg-blue-50 text-blue-600 text-[10px] font-bold rounded-full">{p.duration}</span>
+                                                                    </div>
+                                                                </div>
+                                                            ))
+                                                        ) : (
+                                                            <p className="text-sm text-[#94A3B8] italic text-center py-4 bg-gray-50 rounded-2xl">Không có đơn thuốc cho hồ sơ này</p>
+                                                        )}
+                                                    </div>
+                                                </div>
+
+                                                {/* Symptoms & Notes parsed */}
+                                                {parsedNotes && parsedNotes.history ? (
+                                                    <div className="grid grid-cols-1 gap-6 mt-6">
+                                                        {/* Legacy format rendering */}
+                                                        <div className="bg-white border border-gray-100 rounded-xl p-4 shadow-sm">
+                                                            <h4 className="text-xs font-bold text-blue-800 uppercase mb-3">Thăm khám lâm sàng</h4>
+                                                            <div className="grid grid-cols-1 gap-2 text-sm text-gray-700">
+                                                                <p><span className="font-semibold text-gray-500">Lý do khám:</span> {parsedNotes.clinical?.reason || "Không ghi nhận"}</p>
+                                                                <p><span className="font-semibold text-gray-500">Diễn biến:</span> {parsedNotes.clinical?.progression || "Không ghi nhận"}</p>
+                                                                <p><span className="font-semibold text-gray-500">Khám bộ phận:</span> {parsedNotes.clinical?.examination || "Không ghi nhận"}</p>
+                                                            </div>
+                                                        </div>
+
+                                                        <div className="bg-white border border-gray-100 rounded-xl p-4 shadow-sm">
+                                                            <h4 className="text-xs font-bold text-blue-800 uppercase mb-3">Cận lâm sàng</h4>
+                                                            <div className="grid grid-cols-1 gap-2 text-sm text-gray-700">
+                                                                <p><span className="font-semibold text-gray-500">Xét nghiệm:</span> {parsedNotes.paraclinical?.tests || "Không có"}</p>
+                                                                <p><span className="font-semibold text-gray-500">Hình ảnh / TDCN:</span> {parsedNotes.paraclinical?.imaging || "Không có"}</p>
+                                                            </div>
+                                                        </div>
+
+                                                        <div className="bg-white border border-gray-100 rounded-xl p-4 shadow-sm">
+                                                            <h4 className="text-xs font-bold text-blue-800 uppercase mb-3">Phương pháp & Chăm sóc</h4>
+                                                            <div className="grid grid-cols-1 gap-2 text-sm text-gray-700">
+                                                                <p><span className="font-semibold text-gray-500">Phương pháp điều trị:</span> {parsedNotes.treatmentMethod || "Không ghi nhận"}</p>
+                                                                <p><span className="font-semibold text-gray-500">Hướng dẫn chăm sóc:</span> {parsedNotes.careInstructions || "Không ghi nhận"}</p>
+                                                                {parsedNotes.generalNotes && <p><span className="font-semibold text-gray-500">Ghi chú thêm:</span> {parsedNotes.generalNotes}</p>}
+                                                            </div>
+                                                        </div>
+
+                                                        {(parsedNotes.additionalDocs?.consentForm || parsedNotes.additionalDocs?.IVForm) && (
+                                                            <div className="bg-white border border-gray-100 rounded-xl p-4 shadow-sm">
+                                                                <h4 className="text-xs font-bold text-blue-800 uppercase mb-3">Biểu mẫu bổ sung</h4>
+                                                                <ul className="list-disc list-inside text-sm text-gray-700 pl-2">
+                                                                    {parsedNotes.additionalDocs?.consentForm && <li>Đã có giấy cam kết phẫu thuật/thủ thuật</li>}
+                                                                    {parsedNotes.additionalDocs?.IVForm && <li>Đã lập phiếu theo dõi truyền dịch</li>}
+                                                                </ul>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                ) : (
+                                                    <div className="grid grid-cols-1 gap-6">
+                                                        {record.symptoms && record.symptoms.length > 0 && (
+                                                            <div>
+                                                                <h3 className="text-[10px] font-bold text-[#94A3B8] uppercase tracking-widest mb-3">Triệu chứng</h3>
+                                                                <div className="flex flex-wrap gap-2">
+                                                                    {record.symptoms.map((s, i) => (
+                                                                        <span key={i} className="px-3 py-1 bg-slate-100 text-slate-600 rounded-lg text-xs font-medium">
+                                                                            {s}
+                                                                        </span>
+                                                                    ))}
+                                                                </div>
+                                                            </div>
+                                                        )}
+                                                        
+                                                        <div>
+                                                            <h3 className="text-[10px] font-bold text-[#94A3B8] uppercase tracking-widest mb-3">Ghi chú bác sĩ</h3>
+                                                            <div className="bg-slate-50 border border-slate-100 rounded-2xl p-4">
+                                                                <p className="text-sm text-[#475569] leading-relaxed italic">
+                                                                    "{record.notes || "Không có ghi chú thêm"}"
+                                                                </p>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                )}
                                             </div>
-                                        </div>
-                                    </div>
+                                        );
+                                    })()}
                                 </div>
                             </>
                         );

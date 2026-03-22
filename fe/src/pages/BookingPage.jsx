@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
-import { getDoctorByIdApi } from "../services/user.api";
+import { getDoctorByIdApi, getDoctorsApi } from "../services/user.api";
 import { createAppointmentApi, updateAppointmentDetailsApi } from "../services/appointment.api";
 
 // Generate time slots
@@ -11,12 +11,12 @@ const generateTimeSlots = () => {
         if (hour !== 12) {
             slots.push({
                 time: `${hour.toString().padStart(2, "0")}:00`,
-                available: Math.random() > 0.3,
+                available: true,
             });
             if (hour < 17) {
                 slots.push({
                     time: `${hour.toString().padStart(2, "0")}:30`,
-                    available: Math.random() > 0.3,
+                    available: true,
                 });
             }
         }
@@ -60,22 +60,32 @@ export default function BookingPage() {
         const fetchDoctor = async () => {
             setLoading(true);
             try {
-                const res = await getDoctorByIdApi(doctorId);
-                // Map to UI needs
-                setDoctor({
-                    ...res.doctor,
-                    id: res.doctor._id,
-                    specialty: res.doctor.specialty || "Bác sĩ đa khoa",
-                    avatar: res.doctor.avatarUrl || "https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?w=200&h=200&fit=crop&crop=face",
-                    price: 300000,
-                });
+                if (doctorId && doctorId !== "quick") {
+                    const res = await getDoctorByIdApi(doctorId);
+                    // Map to UI needs
+                    setDoctor({
+                        ...res.doctor,
+                        id: res.doctor._id,
+                        specialty: res.doctor.specialty || "Bác sĩ đa khoa",
+                        avatar: res.doctor.avatarUrl || "https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?w=200&h=200&fit=crop&crop=face",
+                        price: 300000,
+                    });
+                } else {
+                    setDoctor({
+                        id: "quick",
+                        name: "Sắp xếp tự động",
+                        specialty: "Phân bổ theo triệu chứng",
+                        avatar: "https://ui-avatars.com/api/?name=Clinic&background=0D8ABC&color=fff",
+                        price: 300000,
+                    });
+                }
             } catch (err) {
                 console.error("Error fetching doctor:", err);
             } finally {
                 setLoading(false);
             }
         };
-        if (doctorId) fetchDoctor();
+        fetchDoctor();
     }, [doctorId]);
 
     // Generate next 7 days
@@ -127,6 +137,21 @@ export default function BookingPage() {
         const dateStr = `${selectedDate.date.getFullYear()}-${String(selectedDate.date.getMonth() + 1).padStart(2, "0")}-${String(selectedDate.dayNum).padStart(2, "0")}`;
 
         try {
+            let finalDoctorId = doctor.id;
+
+            // Tự động sắp xếp bác sĩ nếu đặt lịch nhanh
+            if (finalDoctorId === "quick") {
+                const res = await getDoctorsApi();
+                const doctors = res.doctors || [];
+                if (doctors.length > 0) {
+                    finalDoctorId = doctors[Math.floor(Math.random() * doctors.length)]._id;
+                } else {
+                    alert("Hiện tại phòng khám không có bác sĩ khả dụng.");
+                    setIsSubmitting(false);
+                    return;
+                }
+            }
+
             if (isReschedule && appointmentId) {
                 await updateAppointmentDetailsApi(appointmentId, {
                     date: dateStr,
@@ -136,7 +161,7 @@ export default function BookingPage() {
                 });
             } else {
                 await createAppointmentApi({
-                    doctorId: doctor.id,
+                    doctorId: finalDoctorId,
                     date: dateStr,
                     time: selectedTime,
                     type: consultationType,
@@ -197,7 +222,7 @@ export default function BookingPage() {
                 </div>
 
                 {/* Doctor Info Card */}
-                <div className="bg-white rounded-2xl p-4 shadow-lg mb-6">
+                <div className="bg-white rounded-2xl p-4 shadow-lg mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                     <div className="flex items-center gap-4">
                         <img
                             src={doctor.avatar}
@@ -212,6 +237,14 @@ export default function BookingPage() {
                             </p>
                         </div>
                     </div>
+                    {doctor.id === "quick" && (
+                        <button
+                            onClick={() => navigate("/doctors")}
+                            className="w-full sm:w-auto px-4 py-2 bg-indigo-50 text-indigo-700 font-medium text-sm rounded-xl hover:bg-indigo-100 transition-colors"
+                        >
+                            Chọn bác sĩ cụ thể
+                        </button>
+                    )}
                 </div>
 
                 {/* Date Selection - Horizontal Calendar */}
@@ -253,10 +286,11 @@ export default function BookingPage() {
                             const filteredSlots = timeSlots.filter((slot) => {
                                 if (!selectedDate.isToday) return true;
                                 const now = new Date();
-                                const currentHour = now.getHours();
-                                const currentMinute = now.getMinutes();
                                 const [slotHour, slotMinute] = slot.time.split(":").map(Number);
-                                return slotHour > currentHour || (slotHour === currentHour && slotMinute > currentMinute);
+                                
+                                const slotTimeInMinutes = slotHour * 60 + slotMinute;
+                                const currentTimeInMinutes = now.getHours() * 60 + now.getMinutes();
+                                return slotTimeInMinutes >= currentTimeInMinutes + 30;
                             });
 
                             if (filteredSlots.length === 0) {
