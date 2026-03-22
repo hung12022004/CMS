@@ -628,11 +628,23 @@ export default function MedicalRecordsPage() {
             <div className={`w-[600px] bg-white border-l transition-all duration-300 flex flex-col shadow-xl ${(showForm || selectedRecordId) ? "mr-0" : "-mr-[600px]"}`}>
                 {showForm ? (
                     <>
-                        <div className="p-5 border-b flex items-center justify-between bg-white sticky top-0 z-10">
-                            <h2 className="text-xl font-bold text-[#1E293B]">Tạo hồ sơ bệnh án mới</h2>
-                            <button onClick={() => setShowForm(false)} className="text-[#94A3B8] hover:text-[#475569] text-sm flex items-center gap-1">
-                                ✕ Hủy
-                            </button>
+                        {/* Professional form header */}
+                        <div className="bg-gradient-to-r from-blue-600 to-indigo-700 p-5 text-white">
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <p className="text-blue-100 text-xs font-semibold uppercase tracking-widest mb-1">Phíu khám bệnh</p>
+                                    <h2 className="text-xl font-bold">Tạo hồ sơ bệnh án</h2>
+                                    {selectedPatient && (
+                                        <div className="flex items-center gap-2 mt-2">
+                                            <div className="w-6 h-6 rounded-full bg-white/20 flex items-center justify-center text-xs font-bold">{selectedPatient.name[0]}</div>
+                                            <span className="text-sm text-blue-100 font-medium">{selectedPatient.name}</span>
+                                        </div>
+                                    )}
+                                </div>
+                                <button onClick={() => setShowForm(false)} className="w-8 h-8 rounded-full bg-white/15 hover:bg-white/25 flex items-center justify-center text-white/80 hover:text-white transition">
+                                    ✕
+                                </button>
+                            </div>
                         </div>
 
                         <div className="flex-1 overflow-y-auto p-5 bg-[#F8FAFC]">
@@ -665,56 +677,99 @@ export default function MedicalRecordsPage() {
                                 </div>
                             </div>
 
-                            {/* II. Quản lý y tế */}
-                            <div className="bg-white border border-gray-200 rounded-xl p-5 mb-5 shadow-sm">
-                                <h3 className="text-sm font-bold text-blue-800 uppercase tracking-wide mb-4">II. Quản lý y tế</h3>
-                                <div className="grid grid-cols-2 gap-4 text-sm mb-4">
-                                    <div><span className="text-gray-500 block text-xs mb-1">Mã số bệnh nhân (ID)</span> <span className="font-semibold text-gray-900">{selectedPatient?._id.substring(0, 8)}...</span></div>
-                                    <div><span className="text-gray-500 block text-xs mb-1">Ngày giờ khám</span> <span className="font-semibold text-gray-900">{new Date().toLocaleString('vi-VN')}</span></div>
-                                </div>
+                            {/* Vitals */}
+                            <div>
+                                <label className="block text-xs font-bold text-[#475569] uppercase tracking-wider mb-3">📊 Chỉ số cơ bản (Vitals)</label>
                                 <div className="grid grid-cols-2 gap-3">
-                                    <div>
-                                        <label className="text-xs font-semibold text-gray-600 block mb-1">Số hồ sơ</label>
-                                        <input type="text" value={formMedicalMgmt.recordNumber} onChange={e => setFormMedicalMgmt({...formMedicalMgmt, recordNumber: e.target.value})} className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 focus:ring-1 focus:ring-blue-500 outline-none placeholder-gray-400" />
+                                    <div className="relative">
+                                        <input type="text" placeholder="Cân nặng" value={formVitals.weight} onChange={e => setFormVitals({ ...formVitals, weight: e.target.value })} className="w-full px-4 py-2.5 bg-[#F8FAFC] border border-[#E2E8F0] rounded-xl text-sm text-[#1E293B] focus:outline-none" />
+                                        <span className="absolute right-3 top-2.5 text-xs text-gray-400">kg</span>
                                     </div>
-                                    <div>
-                                        <label className="text-xs font-semibold text-gray-600 block mb-1">Đối tượng</label>
-                                        <select value={formMedicalMgmt.objectType} onChange={e => setFormMedicalMgmt({...formMedicalMgmt, objectType: e.target.value})} className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 focus:ring-1 focus:ring-blue-500 outline-none">
-                                            <option value="Dịch vụ">Dịch vụ</option>
-                                            <option value="BHYT">BHYT</option>
-                                        </select>
+                                    <div className="relative">
+                                        <input type="text" placeholder="Huyết áp" value={formVitals.bloodPressure} onChange={e => setFormVitals({ ...formVitals, bloodPressure: e.target.value })} className="w-full px-4 py-2.5 bg-[#F8FAFC] border border-[#E2E8F0] rounded-xl text-sm text-[#1E293B] focus:outline-none" />
+                                        <span className="absolute right-3 top-2.5 text-xs text-gray-400">mmHg</span>
                                     </div>
-                                </div>
-                            </div>
-
-                            {/* III. Hỏi bệnh */}
-                            <div className="bg-white border border-gray-200 rounded-xl p-5 mb-5 shadow-sm">
-                                <h3 className="text-sm font-bold text-blue-800 uppercase tracking-wide mb-4">III. Hỏi bệnh</h3>
-                                <div className="space-y-4">
-                                    <div>
-                                        <label className="text-xs font-semibold text-gray-600 block mb-1">Lý do đến khám</label>
-                                        <textarea value={formAnamnesis.reason} onChange={e => setFormAnamnesis({...formAnamnesis, reason: e.target.value})} rows={2} className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 focus:ring-1 focus:ring-blue-500 outline-none resize-none placeholder-gray-400" placeholder="Ví dụ: Đau bụng" />
+                                    <div className="relative">
+                                        <input type="text" placeholder="Nhịp tim" value={formVitals.heartRate} onChange={e => setFormVitals({ ...formVitals, heartRate: e.target.value })} className="w-full px-4 py-2.5 bg-[#F8FAFC] border border-[#E2E8F0] rounded-xl text-sm text-[#1E293B] focus:outline-none" />
+                                        <span className="absolute right-3 top-2.5 text-xs text-gray-400">bpm</span>
+                                    </div>
+                                    <div className="relative">
+                                        <input type="text" placeholder="Nhiệt độ" value={formVitals.temperature} onChange={e => setFormVitals({ ...formVitals, temperature: e.target.value })} className="w-full px-4 py-2.5 bg-[#F8FAFC] border border-[#E2E8F0] rounded-xl text-sm text-[#1E293B] focus:outline-none" />
+                                        <span className="absolute right-3 top-2.5 text-xs text-gray-400">°C</span>
                                     </div>
                                 </div>
                             </div>
 
-                            {/* IV. Thăm khám */}
-                            <div className="bg-white border border-gray-200 rounded-xl p-5 mb-5 shadow-sm">
-                                <h3 className="text-sm font-bold text-blue-800 uppercase tracking-wide mb-4">IV. Thăm khám</h3>
-                                <div className="space-y-4">
-                                    <div>
-                                        <label className="text-xs font-semibold text-gray-600 block mb-1">1. Tình trạng</label>
-                                        <textarea value={formExamination.general} onChange={e => setFormExamination({...formExamination, general: e.target.value})} rows={2} className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 focus:ring-1 focus:ring-blue-500 outline-none resize-none placeholder-gray-400" placeholder="Tỉnh táo không? Da niêm mạc thế nào?..." />
+                            {/* Symptoms */}
+                            <div>
+                                <label className="block text-xs font-bold text-[#475569] uppercase tracking-wider mb-2">🤒 Triệu chứng</label>
+                                <div className="flex gap-2 mb-2">
+                                    <input
+                                        type="text"
+                                        value={formSymptomInput}
+                                        onChange={e => setFormSymptomInput(e.target.value)}
+                                        onKeyDown={handleSymptomKeyDown}
+                                        placeholder="Nhập triệu chứng rồi Enter..."
+                                        className="flex-1 px-4 py-2.5 bg-[#F8FAFC] border border-[#E2E8F0] rounded-xl text-sm text-[#1E293B] focus:outline-none"
+                                    />
+                                    <button onClick={addSymptom} className="px-3 py-2 bg-blue-100 text-blue-700 rounded-xl text-sm font-semibold hover:bg-blue-200 transition">+</button>
+                                </div>
+                                <div className="flex flex-wrap gap-2">
+                                    {formSymptoms.map((s, i) => (
+                                        <span key={i} className="inline-flex items-center gap-1.5 px-3 py-1 bg-blue-50 text-blue-700 rounded-full text-xs font-medium border border-blue-100">
+                                            {s}
+                                            <button onClick={() => removeSymptom(i)} className="text-blue-400 hover:text-red-500 transition">✕</button>
+                                        </span>
+                                    ))}
+                                </div>
+                            </div>
+
+                            {/* Prescriptions */}
+                            <div>
+                                <label className="block text-xs font-bold text-[#475569] uppercase tracking-wider mb-2">💊 Đơn thuốc</label>
+                                <div className="space-y-3 mb-3 bg-[#F8FAFC] p-4 rounded-xl border border-[#E2E8F0]">
+                                    <input
+                                        type="text"
+                                        placeholder="Tên thuốc..."
+                                        value={formPrescriptionInput.name}
+                                        onChange={e => setFormPrescriptionInput({ ...formPrescriptionInput, name: e.target.value })}
+                                        className="w-full px-3 py-2 bg-white border border-[#E2E8F0] rounded-lg text-sm text-[#1E293B] focus:outline-none focus:ring-2 focus:ring-blue-100"
+                                    />
+                                    <div className="grid grid-cols-2 gap-2">
+                                        <input
+                                            type="text"
+                                            placeholder="Liều dùng..."
+                                            value={formPrescriptionInput.dosage}
+                                            onChange={e => setFormPrescriptionInput({ ...formPrescriptionInput, dosage: e.target.value })}
+                                            className="px-3 py-2 bg-white border border-[#E2E8F0] rounded-lg text-sm text-[#1E293B] focus:outline-none"
+                                        />
+                                        <input
+                                            type="text"
+                                            placeholder="Thời gian..."
+                                            value={formPrescriptionInput.duration}
+                                            onChange={e => setFormPrescriptionInput({ ...formPrescriptionInput, duration: e.target.value })}
+                                            className="px-3 py-2 bg-white border border-[#E2E8F0] rounded-lg text-sm text-[#1E293B] focus:outline-none"
+                                        />
                                     </div>
-                                    
-                                    <div>
-                                        <label className="text-xs font-semibold text-gray-600 block mb-2">2. Chỉ số sinh tồn</label>
-                                        <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
-                                            <input type="text" placeholder="Mạch (lần/phút)" value={formVitals.heartRate} onChange={e => setFormVitals({ ...formVitals, heartRate: e.target.value })} className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 focus:outline-none focus:ring-1 focus:ring-blue-500 placeholder-gray-400" />
-                                            <input type="text" placeholder="HA (mmHg)" value={formVitals.bloodPressure} onChange={e => setFormVitals({ ...formVitals, bloodPressure: e.target.value })} className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 focus:outline-none focus:ring-1 focus:ring-blue-500 placeholder-gray-400" />
-                                            <input type="text" placeholder="Nhiệt độ (°C)" value={formVitals.temperature} onChange={e => setFormVitals({ ...formVitals, temperature: e.target.value })} className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 focus:outline-none focus:ring-1 focus:ring-blue-500 placeholder-gray-400" />
-                                            <input type="text" placeholder="SpO2 (%)" value={formVitals.spo2} onChange={e => setFormVitals({ ...formVitals, spo2: e.target.value })} className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 focus:outline-none focus:ring-1 focus:ring-blue-500 placeholder-gray-400" />
-                                            <input type="text" placeholder="Cân nặng (kg)" value={formVitals.weight} onChange={e => setFormVitals({ ...formVitals, weight: e.target.value })} className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 focus:outline-none focus:ring-1 focus:ring-blue-500 placeholder-gray-400" />
+                                    <button
+                                        onClick={addPrescription}
+                                        type="button"
+                                        className="w-full py-2 bg-blue-600 text-white rounded-lg text-xs font-bold hover:bg-blue-700 transition"
+                                    >
+                                        + Thêm thuốc vào đơn
+                                    </button>
+                                </div>
+                                <div className="space-y-2">
+                                    {formPrescriptions.map((p, i) => (
+                                        <div key={i} className="flex items-center justify-between p-3 bg-white border border-blue-100 rounded-xl shadow-sm">
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-8 h-8 bg-blue-50 rounded-lg flex items-center justify-center text-base">💊</div>
+                                                <div>
+                                                    <p className="text-sm font-bold text-gray-800">{p.name}</p>
+                                                    <p className="text-[11px] text-gray-500">{p.dosage} | {p.duration}</p>
+                                                </div>
+                                            </div>
+                                            <button onClick={() => removePrescription(i)} className="p-1.5 text-red-400 hover:bg-red-50 rounded-lg transition">✕</button>
                                         </div>
                                     </div>
 
@@ -725,216 +780,16 @@ export default function MedicalRecordsPage() {
                                 </div>
                             </div>
 
-                            {/* V. Cận lâm sàng */}
-                            <div className="bg-white border border-gray-200 rounded-xl p-5 mb-5 shadow-sm">
-                                <h3 className="text-sm font-bold text-blue-800 uppercase tracking-wide mb-4">V. Cận lâm sàng</h3>
-                                <div className="space-y-4">
-                                    <div>
-                                        <label className="text-xs font-semibold text-gray-600 block mb-1">Xét nghiệm (Máu, nước tiểu...)</label>
-                                        <textarea value={formParaclinical.tests} onChange={e => setFormParaclinical({...formParaclinical, tests: e.target.value})} rows={2} className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 focus:ring-1 focus:ring-blue-500 outline-none resize-none placeholder-gray-400" placeholder="Các chỉ định xét nghiệm và kết quả..." />
-                                    </div>
-                                    <div>
-                                        <label className="text-xs font-semibold text-gray-600 block mb-1">Chẩn đoán hình ảnh (Siêu âm, X-quang, MRI...)</label>
-                                        <textarea value={formParaclinical.imaging} onChange={e => setFormParaclinical({...formParaclinical, imaging: e.target.value})} rows={2} className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 focus:ring-1 focus:ring-blue-500 outline-none resize-none placeholder-gray-400" placeholder="Kết quả chẩn đoán hình ảnh..." />
-                                    </div>
-                                    <div>
-                                        <label className="text-xs font-semibold text-gray-600 block mb-1">Nội soi</label>
-                                        <input type="text" value={formParaclinical.endoscopy} onChange={e => setFormParaclinical({...formParaclinical, endoscopy: e.target.value})} className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 focus:ring-1 focus:ring-blue-500 outline-none placeholder-gray-400" placeholder="Kết quả nội soi nếu có..." />
-                                    </div>
-                                </div>
-                            </div>
-
-                            {/* VI. Tổng kết bệnh */}
-                            <div className="bg-white border border-gray-200 rounded-xl p-5 mb-5 shadow-sm">
-                                <h3 className="text-sm font-bold text-blue-800 uppercase tracking-wide mb-4">VI. Tổng kết bệnh</h3>
-                                <div className="space-y-4">
-                                    <div>
-                                        <label className="text-xs font-bold text-gray-800 block mb-1">Chẩn đoán bệnh *</label>
-                                        <input type="text" value={formDiagnosis} onChange={e => setFormDiagnosis(e.target.value)} className="w-full px-3 py-2 bg-blue-50 border border-blue-200 rounded-lg text-sm font-semibold text-gray-900 focus:ring-1 focus:ring-blue-500 outline-none placeholder-gray-400" placeholder="Tên chẩn đoán..." />
-                                    </div>
-                                    <div>
-                                        <label className="text-xs font-semibold text-gray-600 block mb-1">Trạng thái hồ sơ</label>
-                                        <select value={formStatus} onChange={e => setFormStatus(e.target.value)} className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 focus:ring-1 focus:ring-blue-500 outline-none">
-                                            <option value="Hoàn thành">✅ Hoàn thành</option>
-                                            <option value="Đang điều trị">🏥 Đang điều trị</option>
-                                            <option value="Chờ kết quả">⏳ Chờ kết quả</option>
-                                        </select>
-                                    </div>
-                                    
-                                    {/* Triệu chứng Tags */}
-                                    <div>
-                                        <label className="text-xs font-semibold text-gray-600 block mb-1">Triệu chứng nổi bật (Tags)</label>
-                                        <div className="flex gap-2 mb-2">
-                                            <input
-                                                type="text"
-                                                value={formSymptomInput}
-                                                onChange={e => setFormSymptomInput(e.target.value)}
-                                                onKeyDown={handleSymptomKeyDown}
-                                                placeholder="Thêm triệu chứng (nhấn Enter)..."
-                                                className="flex-1 px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 focus:outline-none focus:ring-1 focus:ring-blue-500 placeholder-gray-400"
-                                            />
-                                            <button 
-                                                type="button"
-                                                onClick={addSymptom} 
-                                                className="px-4 py-2 bg-blue-100 text-blue-700 font-semibold rounded-lg hover:bg-blue-200 text-sm transition-colors"
-                                            >
-                                                Thêm
-                                            </button>
-                                        </div>
-                                        <div className="flex flex-wrap gap-2">
-                                            {formSymptoms.map((s, i) => (
-                                                <span key={i} className="inline-flex items-center gap-1.5 px-3 py-1 bg-blue-50 border border-blue-200 text-blue-700 rounded-full text-xs font-medium">
-                                                    {s}
-                                                    <button type="button" onClick={() => removeSymptom(i)} className="text-blue-400 hover:text-blue-600">✕</button>
-                                                </span>
-                                            ))}
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            {/* VII. Điều trị & Theo dõi */}
-                            <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
-                                <h3 className="text-sm font-bold text-blue-800 uppercase tracking-wide mb-4">VII. Điều trị & Theo dõi</h3>
-                                <div className="space-y-4">
-                                    
-                                    <div>
-                                        <label className="text-xs font-semibold text-gray-600 block mb-2">1. Đơn thuốc</label>
-                                        
-
-                                        <div className="space-y-3 mb-3 bg-gray-50 p-4 rounded-xl border border-gray-200">
-                                            <div>
-                                                <label className="text-xs text-gray-500 mb-1 block">Tên thuốc</label>
-                                                <div className="relative">
-                                                    <input 
-                                                        type="text" 
-                                                        placeholder="Chọn hoặc nhập tên thuốc..." 
-                                                        value={formPrescriptionInput.name} 
-                                                        onChange={e => {
-                                                            setFormPrescriptionInput({ ...formPrescriptionInput, name: e.target.value });
-                                                            setShowMedicineDropdown(true);
-                                                        }} 
-                                                        onFocus={() => setShowMedicineDropdown(true)}
-                                                        onBlur={() => setTimeout(() => setShowMedicineDropdown(false), 200)}
-                                                        className="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 placeholder-gray-400" 
-                                                    />
-                                                    {showMedicineDropdown && COMMON_MEDICINES.filter(med => med.toLowerCase().includes(formPrescriptionInput.name.toLowerCase())).length > 0 && (
-                                                        <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
-                                                            {COMMON_MEDICINES.filter(med => med.toLowerCase().includes(formPrescriptionInput.name.toLowerCase())).map((med, idx) => (
-                                                                <div 
-                                                                    key={idx} 
-                                                                    className="px-3 py-2 hover:bg-blue-50 cursor-pointer text-sm text-gray-800 border-b border-gray-50 last:border-0"
-                                                                    onClick={() => {
-                                                                        setFormPrescriptionInput({ ...formPrescriptionInput, name: med });
-                                                                        setShowMedicineDropdown(false);
-                                                                    }}
-                                                                >
-                                                                    {med}
-                                                                </div>
-                                                            ))}
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            </div>
-                                            <div className="grid grid-cols-2 gap-3">
-                                                <div>
-                                                    <label className="text-xs text-gray-500 mb-1 block">Liều lượng / lần</label>
-                                                    <div className="relative">
-                                                        <input 
-                                                            type="text" 
-                                                            placeholder="VD: 1 viên/lần..." 
-                                                            value={formPrescriptionInput.dosage} 
-                                                            onChange={e => {
-                                                                setFormPrescriptionInput({ ...formPrescriptionInput, dosage: e.target.value });
-                                                                setShowDosageDropdown(true);
-                                                            }} 
-                                                            onFocus={() => setShowDosageDropdown(true)}
-                                                            onBlur={() => setTimeout(() => setShowDosageDropdown(false), 200)}
-                                                            className="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 placeholder-gray-400" 
-                                                        />
-                                                        {showDosageDropdown && COMMON_DOSAGES.filter(dos => dos.toLowerCase().includes(formPrescriptionInput.dosage.toLowerCase())).length > 0 && (
-                                                            <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
-                                                                {COMMON_DOSAGES.filter(dos => dos.toLowerCase().includes(formPrescriptionInput.dosage.toLowerCase())).map((dos, idx) => (
-                                                                    <div 
-                                                                        key={idx} 
-                                                                        className="px-3 py-2 hover:bg-blue-50 cursor-pointer text-sm text-gray-800 border-b border-gray-50 last:border-0"
-                                                                        onClick={() => {
-                                                                            setFormPrescriptionInput({ ...formPrescriptionInput, dosage: dos });
-                                                                            setShowDosageDropdown(false);
-                                                                        }}
-                                                                    >
-                                                                        {dos}
-                                                                    </div>
-                                                                ))}
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                </div>
-                                                <div>
-                                                    <label className="text-xs text-gray-500 mb-1 block">Thời gian</label>
-                                                    <input type="text" placeholder="VD: 7 ngày..." value={formPrescriptionInput.duration} onChange={e => setFormPrescriptionInput({ ...formPrescriptionInput, duration: e.target.value })} className="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 placeholder-gray-400" />
-                                                </div>
-                                                <div className="col-span-2">
-                                                    <label className="text-xs text-gray-500 mb-1 block">Cách dùng & Tần suất</label>
-                                                    <div className="relative">
-                                                        <input 
-                                                            type="text" 
-                                                            placeholder="VD: Uống 2 lần/ngày sau ăn..." 
-                                                            value={formPrescriptionInput.instructions} 
-                                                            onChange={e => {
-                                                                setFormPrescriptionInput({ ...formPrescriptionInput, instructions: e.target.value });
-                                                                setShowInstructionDropdown(true);
-                                                            }} 
-                                                            onFocus={() => setShowInstructionDropdown(true)}
-                                                            onBlur={() => setTimeout(() => setShowInstructionDropdown(false), 200)}
-                                                            className="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 placeholder-gray-400" 
-                                                        />
-                                                        {showInstructionDropdown && COMMON_INSTRUCTIONS.filter(inst => inst.toLowerCase().includes((formPrescriptionInput.instructions || "").toLowerCase())).length > 0 && (
-                                                            <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
-                                                                {COMMON_INSTRUCTIONS.filter(inst => inst.toLowerCase().includes((formPrescriptionInput.instructions || "").toLowerCase())).map((inst, idx) => (
-                                                                    <div 
-                                                                        key={idx} 
-                                                                        className="px-3 py-2 hover:bg-blue-50 cursor-pointer text-sm text-gray-800 border-b border-gray-50 last:border-0"
-                                                                        onClick={() => {
-                                                                            setFormPrescriptionInput({ ...formPrescriptionInput, instructions: inst });
-                                                                            setShowInstructionDropdown(false);
-                                                                        }}
-                                                                    >
-                                                                        {inst}
-                                                                    </div>
-                                                                ))}
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            <button onClick={addPrescription} type="button" className="w-full py-2 bg-blue-600 text-white rounded-lg text-xs font-bold hover:bg-blue-700">
-                                                + Thêm thuốc
-                                            </button>
-                                        </div>
-                                        <div className="space-y-2">
-                                            {formPrescriptions.map((p, i) => (
-                                                <div key={i} className="flex items-center justify-between p-3 bg-white border border-blue-100 rounded-xl shadow-sm">
-                                                    <div className="flex-1">
-                                                        <p className="text-sm font-bold text-gray-800">{p.name}</p>
-                                                        <p className="text-[11px] text-gray-500">{p.dosage} • {p.duration}</p>
-                                                        {p.instructions && <p className="text-[11px] text-gray-500 italic">HD: {p.instructions}</p>}
-                                                    </div>
-                                                    <button onClick={() => removePrescription(i)} className="p-1 text-red-400 hover:bg-red-50 rounded-lg">✕</button>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </div>
-
-                                    <div>
-                                        <label className="text-xs font-semibold text-gray-600 block mb-1">2. Lời dặn bác sĩ</label>
-                                        <textarea value={formTreatment.advice} onChange={e => setFormTreatment({...formTreatment, advice: e.target.value})} rows={2} className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 focus:ring-1 focus:ring-blue-500 outline-none resize-none placeholder-gray-400" placeholder="Chế độ ăn uống, sinh hoạt..." />
-                                    </div>
-                                    <div>
-                                        <label className="text-xs font-semibold text-gray-600 block mb-1">3. Hẹn tái khám</label>
-                                        <input type="text" value={formTreatment.followUp} onChange={e => setFormTreatment({...formTreatment, followUp: e.target.value})} className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 focus:ring-1 focus:ring-blue-500 outline-none placeholder-gray-400" placeholder="Ngày cụ thể hoặc dấu hiệu bất thường..." />
-                                    </div>
-                                </div>
+                            {/* Notes */}
+                            <div>
+                                <label className="block text-xs font-bold text-[#475569] uppercase tracking-wider mb-2">📝 Ghi chú & Hướng dẫn</label>
+                                <textarea
+                                    value={formNotes}
+                                    onChange={e => setFormNotes(e.target.value)}
+                                    placeholder="Nhập ghi chú điều trị, hướng dẫn tái khám..."
+                                    rows={3}
+                                    className="w-full px-4 py-3 bg-[#F8FAFC] border border-[#E2E8F0] rounded-xl text-sm text-[#1E293B] focus:outline-none resize-none"
+                                />
                             </div>
                         </div>
 

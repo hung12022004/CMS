@@ -1,491 +1,422 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "../hooks/useAuth";
-
-// Mock data bệnh nhân
-const mockPatients = [
-    {
-        id: 1,
-        name: "Lê Văn C",
-        email: "patient@clinic.com",
-        phone: "0909123456",
-        gender: "male",
-        dob: "1990-05-15",
-        bloodType: "A+",
-        appointment: {
-            date: "2026-02-24",
-            time: "09:00",
-            doctor: "BS. Nguyễn Văn A",
-            specialty: "Tim mạch",
-            status: "confirmed",
-        },
-        vitals: { bp: "120/80", heartRate: 72, height: 170, weight: 68 },
-    },
-    {
-        id: 2,
-        name: "Trần Thị D",
-        email: "trand@email.com",
-        phone: "0909234567",
-        gender: "female",
-        dob: "1985-08-22",
-        bloodType: "O+",
-        appointment: {
-            date: "2026-02-24",
-            time: "09:30",
-            doctor: "BS. Nguyễn Văn A",
-            specialty: "Tim mạch",
-            status: "pending",
-        },
-        vitals: { bp: "", heartRate: null, height: null, weight: null },
-    },
-    {
-        id: 3,
-        name: "Phạm Minh E",
-        email: "phame@email.com",
-        phone: "0909345678",
-        gender: "male",
-        dob: "1978-12-03",
-        bloodType: "B+",
-        appointment: {
-            date: "2026-02-24",
-            time: "10:00",
-            doctor: "BS. Trần Thị Bình",
-            specialty: "Nhi khoa",
-            status: "checked_in",
-        },
-        vitals: { bp: "130/85", heartRate: 78, height: 175, weight: 82 },
-    },
-    {
-        id: 4,
-        name: "Nguyễn Thị F",
-        email: "nguyenf@email.com",
-        phone: "0909456789",
-        gender: "female",
-        dob: "1995-03-18",
-        bloodType: "AB+",
-        appointment: {
-            date: "2026-02-24",
-            time: "10:30",
-            doctor: "BS. Lê Hoàng Cường",
-            specialty: "Nha khoa",
-            status: "in_progress",
-        },
-        vitals: { bp: "110/70", heartRate: 68, height: 160, weight: 52 },
-    },
-    {
-        id: 5,
-        name: "Hoàng Văn G",
-        email: "hoangg@email.com",
-        phone: "0909567890",
-        gender: "male",
-        dob: "2000-07-25",
-        bloodType: "O-",
-        appointment: {
-            date: "2026-02-24",
-            time: "11:00",
-            doctor: "BS. Nguyễn Văn A",
-            specialty: "Tim mạch",
-            status: "completed",
-        },
-        vitals: { bp: "125/82", heartRate: 75, height: 180, weight: 78 },
-    },
-];
+import {
+    getQueueEntriesApi,
+    assignDoctorApi,
+    updateQueueStatusApi,
+} from "../services/checkin.api";
+import { getDoctorsApi } from "../services/user.api";
 
 const STATUS_CONFIG = {
-    pending: { label: "Chờ xác nhận", color: "bg-amber-100 text-amber-700", icon: "🕐" },
-    confirmed: { label: "Đã xác nhận", color: "bg-blue-100 text-blue-700", icon: "✅" },
-    checked_in: { label: "Đã check-in", color: "bg-emerald-100 text-emerald-700", icon: "📋" },
-    in_progress: { label: "Đang khám", color: "bg-purple-100 text-purple-700", icon: "🩺" },
-    completed: { label: "Hoàn thành", color: "bg-gray-100 text-gray-600", icon: "✔️" },
-    cancelled: { label: "Đã hủy", color: "bg-red-100 text-red-700", icon: "❌" },
+    pending: { label: "Chờ phân loại", color: "bg-amber-100 text-amber-700 border-amber-200", icon: "🕐" },
+    waiting: { label: "Chờ khám", color: "bg-blue-100 text-blue-700 border-blue-200", icon: "⏳" },
+    in_progress: { label: "Đang khám", color: "bg-purple-100 text-purple-700 border-purple-200", icon: "🩺" },
+    completed: { label: "Hoàn thành", color: "bg-emerald-100 text-emerald-700 border-emerald-200", icon: "✅" },
+    cancelled: { label: "Đã hủy", color: "bg-red-100 text-red-700 border-red-200", icon: "❌" },
 };
 
+function getWaitingTime(createdAt) {
+    const diff = Date.now() - new Date(createdAt).getTime();
+    const mins = Math.floor(diff / 60000);
+    if (mins < 1) return "Vừa vào";
+    if (mins < 60) return `${mins} phút`;
+    return `${Math.floor(mins / 60)}h ${mins % 60}p`;
+}
+
+// ─── Assign Doctor Modal ───────────────────────────────────────────────────
+function AssignDoctorModal({ entry, onClose, onAssigned }) {
+    const [doctors, setDoctors] = useState([]);
+    const [selectedDoctor, setSelectedDoctor] = useState(null);
+    const [triageNotes, setTriageNotes] = useState("");
+    const [loading, setLoading] = useState(false);
+    const [loadingDoctors, setLoadingDoctors] = useState(true);
+    const [filter, setFilter] = useState("");
+
+    useEffect(() => {
+        getDoctorsApi()
+            .then((data) => setDoctors(data.doctors || []))
+            .catch(console.error)
+            .finally(() => setLoadingDoctors(false));
+    }, []);
+
+    const filtered = doctors.filter(
+        (d) =>
+            d.name.toLowerCase().includes(filter.toLowerCase()) ||
+            d.specialty?.toLowerCase().includes(filter.toLowerCase())
+    );
+
+    const handleConfirm = async () => {
+        if (!selectedDoctor) return;
+        setLoading(true);
+        try {
+            const data = await assignDoctorApi(entry._id, selectedDoctor._id, triageNotes);
+            onAssigned(data.entry);
+        } catch (err) {
+            console.error("assignDoctor error:", err);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    return (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={onClose}>
+            <div
+                className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden"
+                onClick={(e) => e.stopPropagation()}
+            >
+                {/* Modal Header */}
+                <div className="bg-gradient-to-r from-blue-600 to-indigo-700 px-6 py-5 text-white">
+                    <h3 className="font-bold text-lg">Phân loại & Gán bác sĩ</h3>
+                    <p className="text-blue-100 text-sm mt-0.5">
+                        Bệnh nhân: <span className="font-semibold">{entry.patientName}</span>
+                    </p>
+                </div>
+
+                <div className="p-6 space-y-4">
+                    {/* Symptoms */}
+                    <div className="bg-amber-50 border border-amber-200 rounded-xl p-3">
+                        <p className="text-xs font-semibold text-amber-600 mb-1">🤒 Triệu chứng</p>
+                        <p className="text-sm text-gray-700">{entry.symptoms}</p>
+                    </div>
+
+                    {/* Triage Notes */}
+                    <div>
+                        <label className="text-xs font-semibold text-gray-600 mb-1 block">Ghi chú phân loại (tuỳ chọn)</label>
+                        <textarea
+                            rows={2}
+                            value={triageNotes}
+                            onChange={(e) => setTriageNotes(e.target.value)}
+                            placeholder="VD: Dự kiến cần xét nghiệm máu..."
+                            className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-blue-400 resize-none"
+                        />
+                    </div>
+
+                    {/* Doctor List */}
+                    <div>
+                        <label className="text-xs font-semibold text-gray-600 mb-1.5 block">Chọn bác sĩ</label>
+                        <input
+                            type="text"
+                            value={filter}
+                            onChange={(e) => setFilter(e.target.value)}
+                            placeholder="Tìm tên hoặc chuyên khoa..."
+                            className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-blue-400 mb-2"
+                        />
+                        <div className="space-y-2 max-h-52 overflow-y-auto">
+                            {loadingDoctors ? (
+                                <p className="text-center text-gray-400 py-4 text-sm">Đang tải...</p>
+                            ) : filtered.length === 0 ? (
+                                <p className="text-center text-gray-400 py-4 text-sm">Không tìm thấy bác sĩ</p>
+                            ) : (
+                                filtered.map((doc) => (
+                                    <button
+                                        key={doc._id}
+                                        onClick={() => setSelectedDoctor(doc)}
+                                        className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition border ${selectedDoctor?._id === doc._id
+                                            ? "border-blue-500 bg-blue-50"
+                                            : "border-gray-100 hover:border-blue-300 hover:bg-blue-50/50"
+                                            }`}
+                                    >
+                                        <div className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
+                                            {doc.name[0]}
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                            <p className="text-sm font-semibold text-gray-800 truncate">{doc.name}</p>
+                                            <p className="text-xs text-gray-400 truncate">{doc.specialty || "Đa khoa"}</p>
+                                        </div>
+                                        {selectedDoctor?._id === doc._id && (
+                                            <span className="text-blue-600 text-lg flex-shrink-0">✓</span>
+                                        )}
+                                    </button>
+                                ))
+                            )}
+                        </div>
+                    </div>
+                </div>
+
+                {/* Actions */}
+                <div className="px-6 pb-6 flex gap-3">
+                    <button
+                        onClick={onClose}
+                        className="flex-1 py-2.5 border border-gray-200 text-gray-600 rounded-xl font-semibold text-sm hover:bg-gray-50 transition"
+                    >
+                        Huỷ
+                    </button>
+                    <button
+                        onClick={handleConfirm}
+                        disabled={!selectedDoctor || loading}
+                        className="flex-1 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-700 text-white rounded-xl font-semibold text-sm hover:from-blue-700 hover:to-indigo-800 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                        {loading ? "Đang xử lý..." : "✓ Xác nhận gán bác sĩ"}
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+// ─── Main Page ─────────────────────────────────────────────────────────────
 export default function NursePatientsPage() {
     const { user } = useAuth();
-    const [patients, setPatients] = useState(mockPatients);
-    const [selectedPatient, setSelectedPatient] = useState(null);
+    const [entries, setEntries] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [activeTab, setActiveTab] = useState("pending");
     const [search, setSearch] = useState("");
-    const [editingVitals, setEditingVitals] = useState(null);
-    const [vitalsForm, setVitalsForm] = useState({ bp: "", heartRate: "", height: "", weight: "" });
+    const [assignModalEntry, setAssignModalEntry] = useState(null);
+    const [updatingId, setUpdatingId] = useState(null);
 
-    // Đọc appointments từ localStorage và merge với mock data
-    useEffect(() => {
-        const stored = JSON.parse(localStorage.getItem("cms_appointments") || "[]");
-        if (stored.length > 0) {
-            const lsPatients = stored
-                .filter(a => a.status !== "cancelled") // bỏ lịch đã hủy
-                .map((a, idx) => ({
-                    id: `ls_${a.id}`,
-                    name: a.patient?.name || "Bệnh nhân",
-                    email: "",
-                    phone: a.patient?.phone || "",
-                    gender: a.patient?.gender === "Nữ" ? "female" : "male",
-                    dob: "",
-                    bloodType: "",
-                    appointment: {
-                        date: a.date,
-                        time: a.time,
-                        doctor: a.doctor?.name || "",
-                        specialty: a.doctor?.specialty || "",
-                        status: a.status || "pending",
-                    },
-                    vitals: { bp: "", heartRate: null, height: null, weight: null },
-                    _lsId: a.id, // giữ id gốc để sync lại localStorage
-                }));
-            setPatients([...lsPatients, ...mockPatients]);
+    const fetchEntries = useCallback(async () => {
+        try {
+            const data = await getQueueEntriesApi();
+            setEntries(data.entries || []);
+        } catch (err) {
+            console.error("fetchEntries error:", err);
+        } finally {
+            setLoading(false);
         }
     }, []);
 
-    const filteredPatients = patients.filter(
-        (p) =>
-            p.name.toLowerCase().includes(search.toLowerCase()) ||
-            p.phone.includes(search)
-    );
+    useEffect(() => {
+        fetchEntries();
+        const interval = setInterval(fetchEntries, 30000);
+        return () => clearInterval(interval);
+    }, [fetchEntries]);
 
-    const handleStatusChange = (patientId, newStatus) => {
-        setPatients((prev) =>
-            prev.map((p) =>
-                p.id === patientId
-                    ? { ...p, appointment: { ...p.appointment, status: newStatus } }
-                    : p
-            )
-        );
-        // Sync lại localStorage nếu là bệnh nhân từ booking
-        const patient = patients.find(p => p.id === patientId);
-        if (patient && patient._lsId) {
-            const stored = JSON.parse(localStorage.getItem("cms_appointments") || "[]");
-            const updated = stored.map(a => a.id === patient._lsId ? { ...a, status: newStatus } : a);
-            localStorage.setItem("cms_appointments", JSON.stringify(updated));
+    const handleStatusChange = async (id, status) => {
+        setUpdatingId(id);
+        try {
+            await updateQueueStatusApi(id, status);
+            await fetchEntries();
+        } catch (err) {
+            console.error("updateStatus error:", err);
+        } finally {
+            setUpdatingId(null);
         }
     };
 
-    const handleVitalsEdit = (patient) => {
-        setEditingVitals(patient.id);
-        setVitalsForm({
-            bp: patient.vitals.bp || "",
-            heartRate: patient.vitals.heartRate || "",
-            height: patient.vitals.height || "",
-            weight: patient.vitals.weight || "",
-        });
-    };
-
-    const handleVitalsSave = (patientId) => {
-        setPatients((prev) =>
-            prev.map((p) =>
-                p.id === patientId
-                    ? {
-                        ...p,
-                        vitals: {
-                            bp: vitalsForm.bp,
-                            heartRate: Number(vitalsForm.heartRate) || null,
-                            height: Number(vitalsForm.height) || null,
-                            weight: Number(vitalsForm.weight) || null,
-                        },
-                    }
-                    : p
-            )
+    const handleAssigned = (updatedEntry) => {
+        setEntries((prev) =>
+            prev.map((e) => (e._id === updatedEntry._id ? updatedEntry : e))
         );
-        setEditingVitals(null);
+        setAssignModalEntry(null);
+        setActiveTab("waiting");
     };
 
-    const handleReschedule = (patientId) => {
-        const newTime = prompt("Nhập giờ khám mới (VD: 14:00):");
-        if (newTime) {
-            setPatients((prev) =>
-                prev.map((p) =>
-                    p.id === patientId
-                        ? { ...p, appointment: { ...p.appointment, time: newTime } }
-                        : p
-                )
-            );
-            // Sync localStorage
-            const patient = patients.find(p => p.id === patientId);
-            if (patient && patient._lsId) {
-                const stored = JSON.parse(localStorage.getItem("cms_appointments") || "[]");
-                const updated = stored.map(a => a.id === patient._lsId ? { ...a, time: newTime } : a);
-                localStorage.setItem("cms_appointments", JSON.stringify(updated));
-            }
-        }
-    };
+    // Count by status
+    const counts = entries.reduce((acc, e) => {
+        acc[e.status] = (acc[e.status] || 0) + 1;
+        return acc;
+    }, {});
+
+    const tabs = [
+        { key: "pending", label: "Chờ phân loại", badge: "bg-amber-500" },
+        { key: "waiting", label: "Đã phân loại", badge: "bg-blue-500" },
+        { key: "in_progress", label: "Đang khám", badge: "bg-purple-500" },
+        { key: "completed", label: "Hoàn thành", badge: "bg-emerald-500" },
+    ];
+
+    const filtered = entries.filter((e) => {
+        const matchStatus = e.status === activeTab;
+        const q = search.toLowerCase();
+        const matchSearch =
+            !q ||
+            e.patientName.toLowerCase().includes(q) ||
+            e.patientPhone?.includes(q) ||
+            e.symptoms.toLowerCase().includes(q);
+        return matchStatus && matchSearch;
+    });
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 pt-20 pb-8">
             <div className="max-w-7xl mx-auto px-4">
                 {/* Header */}
-                <div className="mb-6">
-                    <h1 className="text-2xl font-bold text-gray-800">
-                        Danh sách bệnh nhân
-                    </h1>
-                    <p className="text-gray-500 text-sm mt-1">
-                        Quản lý, cập nhật sinh hiệu và trạng thái khám
-                    </p>
+                <div className="flex flex-wrap items-center gap-4 mb-8">
+                    <div className="flex items-center gap-4 flex-1">
+                        <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-teal-400 to-cyan-600 flex items-center justify-center text-2xl shadow-lg">
+                            👩‍⚕️
+                        </div>
+                        <div>
+                            <h1 className="text-2xl font-bold text-gray-800">Bảng điều phối</h1>
+                            <p className="text-gray-500 text-sm">
+                                Xin chào, <span className="font-semibold text-teal-600">{user?.name}</span> • Hôm nay {new Date().toLocaleDateString("vi-VN")}
+                            </p>
+                        </div>
+                    </div>
+                    <div className="flex gap-3">
+                        <button
+                            onClick={fetchEntries}
+                            className="px-4 py-2 text-sm bg-white border border-gray-200 rounded-xl text-gray-600 hover:bg-blue-50 hover:border-blue-300 hover:text-blue-600 transition shadow-sm"
+                        >
+                            🔄 Làm mới
+                        </button>
+                        <a
+                            href="/checkin"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="px-4 py-2 text-sm bg-gradient-to-r from-blue-600 to-indigo-700 text-white rounded-xl hover:from-blue-700 hover:to-indigo-800 transition shadow-md font-semibold"
+                        >
+                            📋 Link Check-in
+                        </a>
+                    </div>
                 </div>
 
-                {/* Search */}
-                <div className="mb-6">
+                {/* Stats */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                    {[
+                        { label: "Chờ phân loại", key: "pending", from: "from-amber-400", to: "to-orange-500", icon: "🕐" },
+                        { label: "Đã phân loại", key: "waiting", from: "from-blue-400", to: "to-indigo-500", icon: "⏳" },
+                        { label: "Đang khám", key: "in_progress", from: "from-purple-500", to: "to-violet-600", icon: "🩺" },
+                        { label: "Hoàn thành", key: "completed", from: "from-emerald-400", to: "to-teal-500", icon: "✅" },
+                    ].map((s) => (
+                        <button
+                            key={s.key}
+                            onClick={() => setActiveTab(s.key)}
+                            className={`bg-gradient-to-br ${s.from} ${s.to} rounded-2xl p-4 text-white shadow-md hover:shadow-lg transition-all text-left ${activeTab === s.key ? "ring-2 ring-offset-2 ring-offset-slate-50 ring-white" : ""}`}
+                        >
+                            <div className="flex items-center justify-between mb-1">
+                                <span className="text-sm font-medium opacity-90">{s.label}</span>
+                                <span className="text-xl">{s.icon}</span>
+                            </div>
+                            <p className="text-4xl font-black">{counts[s.key] || 0}</p>
+                        </button>
+                    ))}
+                </div>
+
+                {/* Tabs + Search */}
+                <div className="flex flex-wrap items-center gap-3 mb-4">
+                    <div className="flex gap-2">
+                        {tabs.map((t) => (
+                            <button
+                                key={t.key}
+                                onClick={() => setActiveTab(t.key)}
+                                className={`flex items-center gap-1.5 px-4 py-2 rounded-xl font-semibold text-sm transition-all ${activeTab === t.key
+                                    ? "bg-white shadow-md text-gray-800 border border-gray-200"
+                                    : "text-gray-500 hover:bg-white/60"
+                                    }`}
+                            >
+                                {t.label}
+                                {(counts[t.key] || 0) > 0 && (
+                                    <span className={`${t.badge} text-white text-xs font-bold px-1.5 py-0.5 rounded-full`}>
+                                        {counts[t.key]}
+                                    </span>
+                                )}
+                            </button>
+                        ))}
+                    </div>
                     <input
                         type="text"
                         value={search}
                         onChange={(e) => setSearch(e.target.value)}
-                        placeholder="Tìm theo tên hoặc SĐT..."
-                        className="w-full md:w-96 px-4 py-3 bg-white border border-gray-200 rounded-xl text-gray-700 placeholder-gray-400 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition shadow-sm"
+                        placeholder="Tìm tên, SĐT, triệu chứng..."
+                        className="ml-auto px-4 py-2 text-sm border border-gray-200 rounded-xl bg-white focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition w-64"
                     />
                 </div>
 
-                {/* Stats */}
-                <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-6">
-                    {Object.entries(STATUS_CONFIG).map(([key, config]) => {
-                        const count = patients.filter((p) => p.appointment.status === key).length;
-                        return (
-                            <div key={key} className="bg-white rounded-xl p-3 shadow-sm border border-gray-100">
-                                <div className="flex items-center gap-2">
-                                    <span className="text-lg">{config.icon}</span>
-                                    <div>
-                                        <p className="text-xs text-gray-500">{config.label}</p>
-                                        <p className="text-lg font-bold text-gray-800">{count}</p>
-                                    </div>
-                                </div>
-                            </div>
-                        );
-                    })}
-                </div>
-
-                <div className="flex flex-col lg:flex-row gap-6">
-                    {/* Patient List */}
-                    <div className="flex-1">
-                        <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
-                            <table className="w-full">
-                                <thead>
-                                    <tr className="bg-gray-50 border-b">
-                                        <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Bệnh nhân</th>
-                                        <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Giờ khám</th>
-                                        <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Bác sĩ</th>
-                                        <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Trạng thái</th>
-                                        <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Hành động</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {filteredPatients.map((p) => {
-                                        const status = STATUS_CONFIG[p.appointment.status];
-                                        return (
-                                            <tr
-                                                key={p.id}
-                                                className={`border-b hover:bg-blue-50/50 transition cursor-pointer ${selectedPatient?.id === p.id ? "bg-blue-50" : ""
-                                                    }`}
-                                                onClick={() => setSelectedPatient(p)}
-                                            >
-                                                <td className="px-4 py-3">
-                                                    <div className="flex items-center gap-3">
-                                                        <div className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white text-sm font-bold">
-                                                            {p.name[0]}
-                                                        </div>
-                                                        <div>
-                                                            <p className="font-semibold text-gray-800 text-sm">{p.name}</p>
-                                                            <p className="text-xs text-gray-400">{p.phone}</p>
-                                                        </div>
-                                                    </div>
-                                                </td>
-                                                <td className="px-4 py-3 text-sm text-gray-700 font-medium">
-                                                    {p.appointment.time}
-                                                </td>
-                                                <td className="px-4 py-3">
-                                                    <p className="text-sm text-gray-700">{p.appointment.doctor}</p>
-                                                    <p className="text-xs text-gray-400">{p.appointment.specialty}</p>
-                                                </td>
-                                                <td className="px-4 py-3">
-                                                    <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold ${status.color}`}>
-                                                        <span>{status.icon}</span> {status.label}
-                                                    </span>
-                                                </td>
-                                                <td className="px-4 py-3">
-                                                    <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
-                                                        <select
-                                                            value={p.appointment.status}
-                                                            onChange={(e) => handleStatusChange(p.id, e.target.value)}
-                                                            className="text-xs border border-gray-200 rounded-lg px-2 py-1.5 bg-white focus:outline-none focus:border-blue-400 cursor-pointer"
-                                                        >
-                                                            <option value="pending">Chờ xác nhận</option>
-                                                            <option value="confirmed">Xác nhận</option>
-                                                            <option value="checked_in">Check-in</option>
-                                                            <option value="in_progress">Đang khám</option>
-                                                            <option value="completed">Hoàn thành</option>
-                                                            <option value="cancelled">Hủy</option>
-                                                        </select>
-                                                        <button
-                                                            onClick={() => handleReschedule(p.id)}
-                                                            className="text-xs px-2 py-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition"
-                                                            title="Đổi lịch"
-                                                        >
-                                                            🔄
-                                                        </button>
-                                                    </div>
-                                                </td>
-                                            </tr>
-                                        );
-                                    })}
-                                </tbody>
-                            </table>
-
-                            {filteredPatients.length === 0 && (
-                                <div className="text-center py-12 text-gray-400">
-                                    Không tìm thấy bệnh nhân nào
-                                </div>
-                            )}
-                        </div>
+                {/* Entry List */}
+                {loading ? (
+                    <div className="flex items-center justify-center py-20">
+                        <svg className="animate-spin w-8 h-8 text-indigo-500 mx-auto mb-3" fill="none" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
+                        </svg>
                     </div>
-
-                    {/* Patient Detail Panel */}
-                    {selectedPatient && (
-                        <div className="w-full lg:w-96">
-                            <div className="bg-white rounded-2xl shadow-lg p-6 sticky top-24">
-                                {/* Patient Info Header */}
-                                <div className="flex items-center gap-4 mb-6">
-                                    <div className="w-14 h-14 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white text-xl font-bold">
-                                        {selectedPatient.name[0]}
-                                    </div>
-                                    <div>
-                                        <h3 className="text-lg font-bold text-gray-800">{selectedPatient.name}</h3>
-                                        <p className="text-sm text-gray-500">{selectedPatient.email}</p>
-                                    </div>
-                                </div>
-
-                                {/* Info Grid */}
-                                <div className="grid grid-cols-2 gap-3 mb-6">
-                                    <div className="bg-gray-50 rounded-xl p-3">
-                                        <p className="text-xs text-gray-400">SĐT</p>
-                                        <p className="text-sm font-medium text-gray-700">{selectedPatient.phone}</p>
-                                    </div>
-                                    <div className="bg-gray-50 rounded-xl p-3">
-                                        <p className="text-xs text-gray-400">Giới tính</p>
-                                        <p className="text-sm font-medium text-gray-700">
-                                            {selectedPatient.gender === "male" ? "Nam" : "Nữ"}
-                                        </p>
-                                    </div>
-                                    <div className="bg-gray-50 rounded-xl p-3">
-                                        <p className="text-xs text-gray-400">Ngày sinh</p>
-                                        <p className="text-sm font-medium text-gray-700">
-                                            {new Date(selectedPatient.dob).toLocaleDateString("vi-VN")}
-                                        </p>
-                                    </div>
-                                    <div className="bg-gray-50 rounded-xl p-3">
-                                        <p className="text-xs text-gray-400">Nhóm máu</p>
-                                        <p className="text-sm font-medium text-gray-700">{selectedPatient.bloodType}</p>
-                                    </div>
-                                </div>
-
-                                {/* Appointment Info */}
-                                <div className="mb-6">
-                                    <h4 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
-                                        📅 Lịch hẹn hôm nay
-                                    </h4>
-                                    <div className="bg-blue-50 rounded-xl p-4">
-                                        <div className="flex justify-between items-center mb-2">
-                                            <span className="text-sm font-medium text-blue-800">
-                                                {selectedPatient.appointment.time} — {selectedPatient.appointment.doctor}
-                                            </span>
-                                        </div>
-                                        <p className="text-xs text-blue-600">{selectedPatient.appointment.specialty}</p>
-                                    </div>
-                                </div>
-
-                                {/* Vitals */}
-                                <div>
-                                    <div className="flex items-center justify-between mb-3">
-                                        <h4 className="text-sm font-semibold text-gray-700 flex items-center gap-2">
-                                            💓 Sinh hiệu sơ bộ
-                                        </h4>
-                                        {editingVitals !== selectedPatient.id ? (
-                                            <button
-                                                onClick={() => handleVitalsEdit(selectedPatient)}
-                                                className="text-xs text-blue-600 hover:text-blue-800 font-medium"
-                                            >
-                                                Cập nhật
-                                            </button>
-                                        ) : (
-                                            <button
-                                                onClick={() => handleVitalsSave(selectedPatient.id)}
-                                                className="text-xs text-emerald-600 hover:text-emerald-800 font-medium"
-                                            >
-                                                ✓ Lưu
-                                            </button>
-                                        )}
-                                    </div>
-
-                                    {editingVitals === selectedPatient.id ? (
-                                        <div className="grid grid-cols-2 gap-3">
-                                            <div>
-                                                <label className="text-xs text-gray-500">Huyết áp</label>
-                                                <input
-                                                    value={vitalsForm.bp}
-                                                    onChange={(e) => setVitalsForm({ ...vitalsForm, bp: e.target.value })}
-                                                    placeholder="120/80"
-                                                    className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-blue-400"
-                                                />
-                                            </div>
-                                            <div>
-                                                <label className="text-xs text-gray-500">Nhịp tim</label>
-                                                <input
-                                                    type="number"
-                                                    value={vitalsForm.heartRate}
-                                                    onChange={(e) => setVitalsForm({ ...vitalsForm, heartRate: e.target.value })}
-                                                    placeholder="72"
-                                                    className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-blue-400"
-                                                />
-                                            </div>
-                                            <div>
-                                                <label className="text-xs text-gray-500">Chiều cao (cm)</label>
-                                                <input
-                                                    type="number"
-                                                    value={vitalsForm.height}
-                                                    onChange={(e) => setVitalsForm({ ...vitalsForm, height: e.target.value })}
-                                                    placeholder="170"
-                                                    className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-blue-400"
-                                                />
-                                            </div>
-                                            <div>
-                                                <label className="text-xs text-gray-500">Cân nặng (kg)</label>
-                                                <input
-                                                    type="number"
-                                                    value={vitalsForm.weight}
-                                                    onChange={(e) => setVitalsForm({ ...vitalsForm, weight: e.target.value })}
-                                                    placeholder="68"
-                                                    className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-blue-400"
-                                                />
-                                            </div>
-                                        </div>
-                                    ) : (
-                                        <div className="grid grid-cols-2 gap-3">
-                                            <div className="bg-red-50 rounded-xl p-3 text-center">
-                                                <p className="text-xs text-red-400">Huyết áp</p>
-                                                <p className="text-lg font-bold text-red-600">
-                                                    {selectedPatient.vitals.bp || "—"}
-                                                </p>
-                                            </div>
-                                            <div className="bg-pink-50 rounded-xl p-3 text-center">
-                                                <p className="text-xs text-pink-400">Nhịp tim</p>
-                                                <p className="text-lg font-bold text-pink-600">
-                                                    {selectedPatient.vitals.heartRate ? `${selectedPatient.vitals.heartRate} bpm` : "—"}
-                                                </p>
-                                            </div>
-                                            <div className="bg-blue-50 rounded-xl p-3 text-center">
-                                                <p className="text-xs text-blue-400">Chiều cao</p>
-                                                <p className="text-lg font-bold text-blue-600">
-                                                    {selectedPatient.vitals.height ? `${selectedPatient.vitals.height} cm` : "—"}
-                                                </p>
-                                            </div>
-                                            <div className="bg-green-50 rounded-xl p-3 text-center">
-                                                <p className="text-xs text-green-400">Cân nặng</p>
-                                                <p className="text-lg font-bold text-green-600">
-                                                    {selectedPatient.vitals.weight ? `${selectedPatient.vitals.weight} kg` : "—"}
-                                                </p>
-                                            </div>
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
+                ) : filtered.length === 0 ? (
+                    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-16 text-center">
+                        <div className="text-5xl mb-3">
+                            {activeTab === "pending" ? "🎉" : "📋"}
                         </div>
-                    )}
-                </div>
+                        <p className="text-gray-500 font-medium">
+                            {activeTab === "pending"
+                                ? "Không có bệnh nhân nào đang chờ phân loại"
+                                : "Không có dữ liệu"}
+                        </p>
+                    </div>
+                ) : (
+                    <div className="grid gap-3">
+                        {filtered.map((entry) => {
+                            const sc = STATUS_CONFIG[entry.status];
+                            const isUpdating = updatingId === entry._id;
+                            return (
+                                <div
+                                    key={entry._id}
+                                    className={`bg-white rounded-2xl shadow-sm border border-gray-100 p-5 hover:shadow-md transition-all ${entry.status === "pending" ? "border-l-4 border-l-amber-400" : entry.status === "waiting" ? "border-l-4 border-l-blue-500" : ""}`}
+                                >
+                                    <div className="flex flex-wrap items-start gap-4">
+                                        {/* Queue Number */}
+                                        <div className="flex-shrink-0 w-12 h-12 rounded-xl bg-blue-100 text-blue-700 flex items-center justify-center font-black text-lg">
+                                            #{String(entry.queueNumber).padStart(2, "0")}
+                                        </div>
+
+                                        {/* Info */}
+                                        <div className="flex-1 min-w-0">
+                                            <div className="flex flex-wrap items-center gap-2 mb-1">
+                                                <h3 className="font-bold text-gray-800">{entry.patientName}</h3>
+                                                {entry.patientPhone && (
+                                                    <span className="text-xs text-gray-400">📞 {entry.patientPhone}</span>
+                                                )}
+                                                <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold border ${sc.color}`}>
+                                                    {sc.icon} {sc.label}
+                                                </span>
+                                            </div>
+                                            <div className="bg-amber-50 border border-amber-100 rounded-xl px-3 py-2 mb-2">
+                                                <p className="text-xs text-amber-600 font-semibold mb-0.5">🤒 Triệu chứng</p>
+                                                <p className="text-sm text-gray-700">{entry.symptoms}</p>
+                                            </div>
+                                            {entry.doctorId && (
+                                                <p className="text-xs text-indigo-600 font-medium">
+                                                    👨‍⚕️ Bác sĩ: <span className="font-bold">{entry.doctorId.name}</span>
+                                                    {entry.doctorId.specialty && <span className="text-gray-400"> ({entry.doctorId.specialty})</span>}
+                                                </p>
+                                            )}
+                                            {entry.triageNotes && (
+                                                <p className="text-xs text-gray-400 italic mt-1">📝 {entry.triageNotes}</p>
+                                            )}
+                                            <p className="text-xs text-gray-400 mt-2">
+                                                ⏱ {getWaitingTime(entry.createdAt)}
+                                                <span className="mx-1">•</span>
+                                                {new Date(entry.createdAt).toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })}
+                                            </p>
+                                        </div>
+
+                                        {/* Actions */}
+                                        <div className="flex-shrink-0 flex gap-2">
+                                            {entry.status === "pending" && (
+                                                <button
+                                                    onClick={() => setAssignModalEntry(entry)}
+                                                    className="px-4 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-700 text-white text-sm font-semibold rounded-xl hover:from-blue-700 hover:to-indigo-800 transition shadow-md hover:shadow-lg"
+                                                >
+                                                    👨‍⚕️ Gán bác sĩ
+                                                </button>
+                                            )}
+                                            {(entry.status === "pending" || entry.status === "waiting") && (
+                                                <button
+                                                    onClick={() => handleStatusChange(entry._id, "cancelled")}
+                                                    disabled={isUpdating}
+                                                    className="px-3 py-2.5 text-sm text-red-400 hover:text-red-600 hover:bg-red-50 rounded-xl border border-transparent hover:border-red-200 transition font-medium disabled:opacity-50"
+                                                >
+                                                    Huỷ
+                                                </button>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+                )}
+
+                <p className="text-center text-xs text-gray-400 mt-6">
+                    🔄 Danh sách tự động cập nhật mỗi 30 giây
+                </p>
             </div>
+
+            {/* Assign Doctor Modal */}
+            {assignModalEntry && (
+                <AssignDoctorModal
+                    entry={assignModalEntry}
+                    onClose={() => setAssignModalEntry(null)}
+                    onAssigned={handleAssigned}
+                />
+            )}
         </div>
     );
 }

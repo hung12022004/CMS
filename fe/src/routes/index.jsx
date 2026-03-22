@@ -24,6 +24,11 @@ import AdminUsersPage from "../pages/AdminUsersPage";
 
 // Nurse Pages
 import NursePatientsPage from "../pages/NursePatientsPage";
+import NurseSchedulePage from "../pages/NurseSchedulePage";
+
+// Check-in & Doctor Queue
+import CheckInPage from "../pages/CheckInPage";
+import DoctorQueuePage from "../pages/DoctorQueuePage";
 
 export default function AppRoutes() {
   return (
@@ -37,6 +42,8 @@ export default function AppRoutes() {
         <Route path="/reset-password" element={<ResetPassword />} />
         <Route path="/verify-otp" element={<VerifyOtpPage />} />
         <Route path="/unauthorized" element={<UnauthorizedPage />} />
+        {/* Walk-in check-in — no login required */}
+        <Route path="/checkin" element={<CheckInPage />} />
 
         {/* Protected: Tất cả user đã đăng nhập */}
         <Route element={<ProtectedRoute allowedRoles={[]} />}>
@@ -69,6 +76,12 @@ export default function AppRoutes() {
         {/* Nurse only */}
         <Route element={<ProtectedRoute allowedRoles={["nurse"]} />}>
           <Route path="/nurse/patients" element={<NursePatientsPage />} />
+          <Route path="/nurse/schedule" element={<NurseSchedulePage />} />
+        </Route>
+
+        {/* Doctor only */}
+        <Route element={<ProtectedRoute allowedRoles={["doctor"]} />}>
+          <Route path="/doctor/queue" element={<DoctorQueuePage />} />
         </Route>
 
         {/* Dashboard: tất cả role đã đăng nhập */}
