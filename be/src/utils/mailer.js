@@ -1,5 +1,5 @@
 const nodemailer = require("nodemailer");
-const { buildOtpTemplate } = require("./otpTemplate");
+const { buildOtpTemplate, buildMedicalRecordTemplate } = require("./otpTemplate");
 
 const transporter = nodemailer.createTransport({
   host: "smtp.gmail.com",
@@ -27,4 +27,16 @@ async function sendOtpEmail({ to, otp, type }) {
   });
 }
 
-module.exports = { sendOtpEmail };
+async function sendMedicalRecordEmail({ to, patientName, doctorName, date, diagnosis }) {
+  const subject = "Thông báo hoàn thành hồ sơ bệnh án - Clinic CMS";
+  const html = buildMedicalRecordTemplate({ patientName, doctorName, date, diagnosis });
+
+  await transporter.sendMail({
+    from: `"Clinic CMS" <${process.env.MAIL_USER}>`,
+    to,
+    subject,
+    html,
+  });
+}
+
+module.exports = { sendOtpEmail, sendMedicalRecordEmail };

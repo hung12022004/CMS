@@ -1,4 +1,6 @@
 const MedicalRecord = require("../models/MedicalRecord");
+const User = require("../models/User");
+const { sendMedicalRecordEmail } = require("../utils/mailer");
 
 // GET /api/v1/medical-records
 exports.getMedicalRecords = async (req, res) => {
@@ -47,6 +49,23 @@ exports.createMedicalRecord = async (req, res) => {
             status: status || "Hoàn thành",
             prescriptions: prescriptions || [],
         });
+
+        // Send email notification to patient
+        try {
+            const patient = await User.findById(patientId);
+            const doctor = await User.findById(doctorId);
+            if (patient && patient.email) {
+                sendMedicalRecordEmail({
+                    to: patient.email,
+                    patientName: patient.name,
+                    doctorName: doctor ? doctor.name : "Bác sĩ",
+                    date: date,
+                    diagnosis: diagnosis
+                }).catch(err => console.error("Email notification background error:", err));
+            }
+        } catch (mailErr) {
+            console.error("Failed to prepare email notification:", mailErr);
+        }
 
         return res.status(201).json({
             message: "Tạo hồ sơ bệnh án thành công",
