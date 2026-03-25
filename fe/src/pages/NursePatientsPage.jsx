@@ -248,14 +248,6 @@ export default function NursePatientsPage() {
                         >
                             🔄 Làm mới
                         </button>
-                        <a
-                            href="/checkin"
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="px-4 py-2 text-sm bg-gradient-to-r from-blue-600 to-indigo-700 text-white rounded-xl hover:from-blue-700 hover:to-indigo-800 transition shadow-md font-semibold"
-                        >
-                            📋 Link Check-in
-                        </a>
                     </div>
                 </div>
 

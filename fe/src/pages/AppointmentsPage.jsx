@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
 import { getAppointmentsApi, updateAppointmentStatusApi, reviewAppointmentApi } from "../services/appointment.api";
+import { createQueueEntryApi, assignDoctorApi } from "../services/checkin.api";
 
 // Mock appointments data (Doctor/Nurse view - hiển thị bệnh nhân) - fallback demo
 const mockDoctorAppointments = {
@@ -141,8 +142,30 @@ export default function AppointmentsPage() {
         }
     };
 
-    const handleConfirm = (appointmentId) => {
-        updateStatus(appointmentId, "confirmed");
+    const handleConfirm = async (appointmentId) => {
+        try {
+            await updateAppointmentStatusApi(appointmentId, "confirmed");
+
+            // Auto-create queue entry so patient appears in doctor's queue
+            const apt = appointmentsList.find(a => a._id === appointmentId);
+            if (apt) {
+                const queueRes = await createQueueEntryApi({
+                    patientName: apt.patientId?.name || "Bệnh nhân",
+                    patientPhone: apt.patientId?.phoneNumber || "",
+                    symptoms: apt.reason || "Lịch hẹn định kỳ",
+                });
+                // Assign doctor so it appears in doctor's queue directly (status: waiting)
+                if (queueRes?.entry?._id && apt.doctorId?._id) {
+                    await assignDoctorApi(queueRes.entry._id, apt.doctorId._id, `Lịch hẹn ${apt.date} ${apt.time}`);
+                }
+            }
+
+            const res = await getAppointmentsApi();
+            setAppointmentsList(res.appointments || []);
+        } catch (err) {
+            console.error("handleConfirm error:", err);
+            alert("Có lỗi xảy ra khi xác nhận lịch hẹn");
+        }
     };
 
     const handleCancel = (appointmentId) => {

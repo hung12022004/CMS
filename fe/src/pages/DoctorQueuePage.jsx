@@ -73,21 +73,14 @@ function QueueCard({ entry, onStatusChange, isUpdating, navigate }) {
                             </button>
                         )}
                         {entry.status === "in_progress" && (
-                            <>
-                                <button
-                                    onClick={() => navigate("/medical-records")}
-                                    className="px-4 py-2.5 bg-gradient-to-r from-blue-500 to-indigo-600 text-white text-sm font-semibold rounded-xl hover:from-blue-600 hover:to-indigo-700 transition shadow-md"
-                                >
-                                    📝 Tạo hồ sơ
-                                </button>
-                                <button
-                                    onClick={() => onStatusChange(entry._id, "completed")}
-                                    disabled={isUpdating}
-                                    className="px-4 py-2.5 bg-gradient-to-r from-emerald-500 to-teal-600 text-white text-sm font-semibold rounded-xl hover:from-emerald-600 hover:to-teal-700 transition shadow-md disabled:opacity-60"
-                                >
-                                    ✅ Hoàn thành
-                                </button>
-                            </>
+                            <button
+                                onClick={() => navigate("/medical-records", {
+                                    state: { patientName: entry.patientName }
+                                })}
+                                className="px-4 py-2.5 bg-gradient-to-r from-blue-500 to-indigo-600 text-white text-sm font-semibold rounded-xl hover:from-blue-600 hover:to-indigo-700 transition shadow-md"
+                            >
+                                📝 Tạo hồ sơ
+                            </button>
                         )}
                         <button
                             onClick={() => onStatusChange(entry._id, "cancelled")}

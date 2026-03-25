@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { createQueueEntryApi } from "../services/checkin.api";
+import { useAuth } from "../hooks/useAuth";
 
 const SPECIALTIES = [
     "Đa khoa",
@@ -21,9 +22,12 @@ const SPECIALTIES = [
 ];
 
 export default function CheckInPage() {
+    const { user } = useAuth();
+    const isLoggedIn = !!user;
+
     const [form, setForm] = useState({
-        patientName: "",
-        patientPhone: "",
+        patientName: user?.name || "",
+        patientPhone: user?.phoneNumber || "",
         symptoms: "",
     });
     const [loading, setLoading] = useState(false);
@@ -54,7 +58,11 @@ export default function CheckInPage() {
 
     const handleReset = () => {
         setSuccess(null);
-        setForm({ patientName: "", patientPhone: "", symptoms: "" });
+        setForm({ 
+            patientName: user?.name || "", 
+            patientPhone: user?.phoneNumber || "", 
+            symptoms: "" 
+        });
         setError("");
     };
 
@@ -143,28 +151,42 @@ export default function CheckInPage() {
                         <div>
                             <label className="block text-sm font-semibold text-gray-700 mb-1.5">
                                 Họ và tên <span className="text-red-500">*</span>
+                                {isLoggedIn && <span className="ml-2 text-xs font-normal text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">✓ Từ tài khoản</span>}
                             </label>
                             <input
                                 name="patientName"
                                 value={form.patientName}
                                 onChange={handleChange}
+                                readOnly={isLoggedIn}
                                 placeholder="Nguyễn Văn A"
-                                className="w-full px-4 py-3 border border-gray-200 rounded-xl text-gray-700 placeholder-gray-300 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition"
+                                className={`w-full px-4 py-3 border rounded-xl text-gray-700 placeholder-gray-300 focus:outline-none transition ${
+                                    isLoggedIn
+                                        ? "bg-gray-50 border-gray-200 text-gray-600 cursor-not-allowed"
+                                        : "border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                                }`}
                             />
                         </div>
 
                         <div>
                             <label className="block text-sm font-semibold text-gray-700 mb-1.5">
                                 Số điện thoại
-                                <span className="ml-1 text-xs font-normal text-gray-400">(không bắt buộc)</span>
+                                {isLoggedIn
+                                    ? <span className="ml-2 text-xs font-normal text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">✓ Từ tài khoản</span>
+                                    : <span className="ml-1 text-xs font-normal text-gray-400">(không bắt buộc)</span>
+                                }
                             </label>
                             <input
                                 name="patientPhone"
                                 value={form.patientPhone}
                                 onChange={handleChange}
+                                readOnly={isLoggedIn}
                                 placeholder="0912 345 678"
                                 type="tel"
-                                className="w-full px-4 py-3 border border-gray-200 rounded-xl text-gray-700 placeholder-gray-300 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition"
+                                className={`w-full px-4 py-3 border rounded-xl text-gray-700 placeholder-gray-300 focus:outline-none transition ${
+                                    isLoggedIn
+                                        ? "bg-gray-50 border-gray-200 text-gray-600 cursor-not-allowed"
+                                        : "border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                                }`}
                             />
                         </div>
 
