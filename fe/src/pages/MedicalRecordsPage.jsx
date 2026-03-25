@@ -74,7 +74,10 @@ const COMMON_MEDICINES = [
     "Azithromycin 500mg", "Loratadine 10mg", "Cetirizine 10mg",
     "Omeprazole 20mg", "Pantoprazole 40mg", "Metformin 500mg",
     "Amlodipine 5mg", "Losartan 50mg", "Vitamin C 500mg",
-    "Alpha Choay", "Oresol", "Nước muối sinh lý 0.9%"
+    "Alpha Choay", "Oresol", "Nước muối sinh lý 0.9%",
+    "Erythromycin 250mg", "Cefuroxime 500mg", "Augmentin 1g",
+    "Salbutamol 2mg", "Terpin Codein", "Berberin 10mg",
+    "Smecta", "Phosphalugel", "Panadol Extra", "Decolgen"
 ];
 
 const COMMON_DOSAGES = [
