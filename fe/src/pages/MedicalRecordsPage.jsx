@@ -134,6 +134,10 @@ export default function MedicalRecordsPage() {
                     }
                     // Delay setting showForm to prevent the other useEffect from overwriting it
                     setTimeout(() => setShowForm(true), 100);
+                } else if (locationState?.patientName && isDoctor) {
+                    // Came from DoctorQueuePage — pre-fill search with patient name
+                    setSearchTerm(locationState.patientName);
+                    setTimeout(() => setShowForm(true), 100);
                 }
             } catch (err) {
                 console.error("Error fetching medical records data:", err);
