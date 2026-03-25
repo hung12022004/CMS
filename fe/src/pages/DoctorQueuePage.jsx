@@ -75,7 +75,7 @@ function QueueCard({ entry, onStatusChange, isUpdating, navigate }) {
                         {entry.status === "in_progress" && (
                             <button
                                 onClick={() => navigate("/medical-records", {
-                                    state: { patientName: entry.patientName }
+                                    state: { patientName: entry.patientName, patientPhone: entry.patientPhone, queueEntryId: entry._id, appointmentId: entry.appointmentId }
                                 })}
                                 className="px-4 py-2.5 bg-gradient-to-r from-blue-500 to-indigo-600 text-white text-sm font-semibold rounded-xl hover:from-blue-600 hover:to-indigo-700 transition shadow-md"
                             >

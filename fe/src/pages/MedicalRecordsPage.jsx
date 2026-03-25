@@ -4,6 +4,7 @@ import { useAuth } from "../hooks/useAuth";
 import { getMedicalRecordsApi, createMedicalRecordApi } from "../services/medicalRecord.api";
 import { getPatientsApi } from "../services/user.api";
 import { updateAppointmentStatusApi } from "../services/appointment.api";
+import { updateQueueStatusApi } from "../services/checkin.api";
 
 // Mock medical records - Doctor view
 const mockDoctorRecords = [
@@ -116,6 +117,7 @@ export default function MedicalRecordsPage() {
     // Form state
     const [showForm, setShowForm] = useState(false);
     const [formPatientId, setFormPatientId] = useState("");
+    const [formQueueEntryId, setFormQueueEntryId] = useState(null);
     const [formAppointmentId, setFormAppointmentId] = useState(null);
     const [formDiagnosis, setFormDiagnosis] = useState("");
     const [formStatus, setFormStatus] = useState("Hoàn thành");
@@ -129,7 +131,27 @@ export default function MedicalRecordsPage() {
     const [formSymptomInput, setFormSymptomInput] = useState("");
     const [formSymptoms, setFormSymptoms] = useState([]);
     const [formNotes, setFormNotes] = useState("");
-    const [formPrescriptionInput, setFormPrescriptionInput] = useState({ name: "", dosage: "", duration: "", instructions: "" });
+
+    const MEDICINE_LIST = [
+        { id: "MED-001", name: "Panadol Extra", unit: "Viên" },
+        { id: "MED-002", name: "Decolgen", unit: "Viên" },
+        { id: "MED-003", name: "Augmentin 1g", unit: "Viên" },
+        { id: "MED-004", name: "Paracetamol 500mg", unit: "Viên" },
+        { id: "MED-005", name: "Alphachymotrypsin", unit: "Viên" },
+        { id: "MED-006", name: "Vitamin C 500mg", unit: "Viên" },
+        { id: "MED-007", name: "Siro Prospan", unit: "Chai" },
+        { id: "MED-008", name: "Domperidon 10mg", unit: "Viên" }
+    ];
+
+    const [formPrescriptionInput, setFormPrescriptionInput] = useState({
+        medicine_id: "",
+        medicine_name: "",
+        dosage_per_time: 1,
+        frequency_per_day: 2,
+        total_days: 5,
+        unit: "Viên",
+        instruction: "Uống sau ăn sáng/tối"
+    });
     const [formPrescriptions, setFormPrescriptions] = useState([]);
 
     // Advanced Form State (7 Sections)
@@ -169,11 +191,29 @@ export default function MedicalRecordsPage() {
                     if (locationState.appointmentId) {
                         setFormAppointmentId(locationState.appointmentId);
                     }
+                    if (locationState.queueEntryId) {
+                        setFormQueueEntryId(locationState.queueEntryId);
+                    }
                     // Delay setting showForm to prevent the other useEffect from overwriting it
                     setTimeout(() => setShowForm(true), 100);
                 } else if (locationState?.patientName && isDoctor) {
                     // Came from DoctorQueuePage — pre-fill search with patient name
                     setSearchTerm(locationState.patientName);
+                    if (locationState.queueEntryId) {
+                        setFormQueueEntryId(locationState.queueEntryId);
+                    }
+                    
+                    // Auto-select patient
+                    const matchedPatient = patientsRes.patients?.find(
+                        p => p.name.toLowerCase() === locationState.patientName.toLowerCase() || 
+                             (p.phoneNumber && p.phoneNumber === locationState.patientPhone)
+                    );
+                    
+                    if (matchedPatient) {
+                        setSelectedPatientId(matchedPatient._id);
+                        setFormPatientId(matchedPatient._id);
+                    }
+
                     setTimeout(() => setShowForm(true), 100);
                 }
             } catch (err) {
@@ -262,10 +302,32 @@ export default function MedicalRecordsPage() {
         }
     };
 
+    const handleMedicineSelect = (medicineName) => {
+        const med = MEDICINE_LIST.find(m => m.name === medicineName);
+        if (med) {
+            setFormPrescriptionInput({ ...formPrescriptionInput, medicine_id: med.id, medicine_name: med.name, unit: med.unit });
+        } else {
+            setFormPrescriptionInput({ ...formPrescriptionInput, medicine_id: "", medicine_name: medicineName, unit: "Viên" });
+        }
+    };
+
     const addPrescription = () => {
-        if (formPrescriptionInput.name.trim()) {
-            setFormPrescriptions([...formPrescriptions, { ...formPrescriptionInput }]);
-            setFormPrescriptionInput({ name: "", dosage: "", duration: "", instructions: "" });
+        if (formPrescriptionInput.medicine_name.trim()) {
+            const totalQty = formPrescriptionInput.dosage_per_time * formPrescriptionInput.frequency_per_day * formPrescriptionInput.total_days;
+            const newPrescription = {
+                ...formPrescriptionInput,
+                total_quantity: totalQty
+            };
+            setFormPrescriptions([...formPrescriptions, newPrescription]);
+            setFormPrescriptionInput({
+                medicine_id: "",
+                medicine_name: "",
+                dosage_per_time: 1,
+                frequency_per_day: 2,
+                total_days: 5,
+                unit: "Viên",
+                instruction: "Uống sau ăn sáng/tối"
+            });
         }
     };
 
@@ -287,7 +349,8 @@ export default function MedicalRecordsPage() {
             examination: formExamination,
             paraclinical: formParaclinical,
             treatment: formTreatment,
-            generalNotes: formNotes
+            generalNotes: formNotes,
+            prescriptionItems: formPrescriptions
         });
         
         const finalSymptoms = [...formSymptoms];
@@ -304,7 +367,12 @@ export default function MedicalRecordsPage() {
                 date: dateStr,
                 vitals: formVitals,
                 status: formStatus,
-                prescriptions: formPrescriptions
+                prescriptions: formPrescriptions.map(p => ({
+                    name: p.medicine_name || p.name,
+                    dosage: p.dosage_per_time ? `${p.dosage_per_time} ${p.unit || 'Viên'}` : p.dosage,
+                    duration: p.total_days ? `${p.total_days} ngày` : p.duration,
+                    instructions: p.frequency_per_day ? `Ngày uống ${p.frequency_per_day} lần. Tổng: ${p.total_quantity} ${p.unit || 'Viên'}. HD: ${p.instruction || ""}` : (p.instructions || "")
+                }))
             });
 
             if (res.record) {
@@ -313,6 +381,13 @@ export default function MedicalRecordsPage() {
                         await updateAppointmentStatusApi(formAppointmentId, "completed");
                     } catch (err) {
                         console.error("Failed to complete appointment automatically:", err);
+                    }
+                }
+                if (formQueueEntryId) {
+                    try {
+                        await updateQueueStatusApi(formQueueEntryId, "completed");
+                    } catch (err) {
+                        console.error("Failed to sync queue status:", err);
                     }
                 }
 
@@ -704,83 +779,254 @@ export default function MedicalRecordsPage() {
                                 </div>
                             </div>
 
-                            {/* Symptoms */}
-                            <div>
-                                <label className="block text-xs font-bold text-[#475569] uppercase tracking-wider mb-2">🤒 Triệu chứng</label>
-                                <div className="flex gap-2 mb-2">
-                                    <input
-                                        type="text"
-                                        value={formSymptomInput}
-                                        onChange={e => setFormSymptomInput(e.target.value)}
-                                        onKeyDown={handleSymptomKeyDown}
-                                        placeholder="Nhập triệu chứng rồi Enter..."
-                                        className="flex-1 px-4 py-2.5 bg-[#F8FAFC] border border-[#E2E8F0] rounded-xl text-sm text-[#1E293B] focus:outline-none"
-                                    />
-                                    <button onClick={addSymptom} className="px-3 py-2 bg-blue-100 text-blue-700 rounded-xl text-sm font-semibold hover:bg-blue-200 transition">+</button>
-                                </div>
-                                <div className="flex flex-wrap gap-2">
-                                    {formSymptoms.map((s, i) => (
-                                        <span key={i} className="inline-flex items-center gap-1.5 px-3 py-1 bg-blue-50 text-blue-700 rounded-full text-xs font-medium border border-blue-100">
-                                            {s}
-                                            <button onClick={() => removeSymptom(i)} className="text-blue-400 hover:text-red-500 transition">✕</button>
-                                        </span>
-                                    ))}
+                            {/* II. Quản lý người bệnh */}
+                            <div className="bg-white border border-gray-200 rounded-xl p-5 mb-5 shadow-sm">
+                                <h3 className="text-sm font-bold text-blue-800 uppercase tracking-wide mb-4">II. Quản lý người bệnh</h3>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="text-xs font-semibold text-gray-600 block mb-1">Mã hồ sơ (Tuỳ chọn)</label>
+                                        <input type="text" value={formMedicalMgmt.recordNumber} onChange={e => setFormMedicalMgmt({...formMedicalMgmt, recordNumber: e.target.value})} className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 focus:ring-1 focus:ring-blue-500 outline-none placeholder-gray-400" />
+                                    </div>
+                                    <div>
+                                        <label className="text-xs font-semibold text-gray-600 block mb-1">Đối tượng khám</label>
+                                        <select value={formMedicalMgmt.objectType} onChange={e => setFormMedicalMgmt({...formMedicalMgmt, objectType: e.target.value})} className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 focus:ring-1 focus:ring-blue-500 outline-none">
+                                            <option value="Dịch vụ">Dịch vụ</option>
+                                            <option value="BHYT">BHYT</option>
+                                            <option value="Khám sức khỏe">Khám sức khỏe</option>
+                                        </select>
+                                    </div>
                                 </div>
                             </div>
 
-                            {/* Prescriptions */}
-                            <div>
-                                <label className="block text-xs font-bold text-[#475569] uppercase tracking-wider mb-2">💊 Đơn thuốc</label>
-                                <div className="space-y-3 mb-3 bg-[#F8FAFC] p-4 rounded-xl border border-[#E2E8F0]">
-                                    <input
-                                        type="text"
-                                        placeholder="Tên thuốc..."
-                                        value={formPrescriptionInput.name}
-                                        onChange={e => setFormPrescriptionInput({ ...formPrescriptionInput, name: e.target.value })}
-                                        className="w-full px-3 py-2 bg-white border border-[#E2E8F0] rounded-lg text-sm text-[#1E293B] focus:outline-none focus:ring-2 focus:ring-blue-100"
-                                    />
-                                    <div className="grid grid-cols-2 gap-2">
+                            {/* III. Lý do khám & Bệnh sử */}
+                            <div className="bg-white border border-gray-200 rounded-xl p-5 mb-5 shadow-sm">
+                                <h3 className="text-sm font-bold text-blue-800 uppercase tracking-wide mb-4">III. Hỏi bệnh</h3>
+                                <div className="space-y-4">
+                                    <div>
+                                        <label className="text-xs font-semibold text-gray-600 block mb-1">1. Lý do khám bệnh / Bệnh sử</label>
+                                        <textarea value={formAnamnesis.reason} onChange={e => setFormAnamnesis({...formAnamnesis, reason: e.target.value})} rows={2} className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 focus:ring-1 focus:ring-blue-500 outline-none resize-none placeholder-gray-400" placeholder="Triệu chứng chính khiến bệnh nhân đi khám..." />
+                                    </div>
+                                    <div>
+                                        <label className="text-xs font-semibold text-gray-600 block mb-2">2. Các Triệu chứng cụ thể (Hỗ trợ chẩn đoán)</label>
+                                        <div className="flex gap-2 mb-2">
+                                            <input
+                                                type="text"
+                                                value={formSymptomInput}
+                                                onChange={e => setFormSymptomInput(e.target.value)}
+                                                onKeyDown={handleSymptomKeyDown}
+                                                placeholder="Nhập triệu chứng rồi Enter..."
+                                                className="flex-1 px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                            />
+                                            <button onClick={addSymptom} className="px-3 py-2 bg-blue-100 text-blue-700 rounded-lg text-sm font-semibold hover:bg-blue-200 transition">+</button>
+                                        </div>
+                                        <div className="flex flex-wrap gap-2">
+                                            {formSymptoms.map((s, i) => (
+                                                <span key={i} className="inline-flex items-center gap-1.5 px-3 py-1 bg-blue-50 text-blue-700 rounded-full text-xs font-medium border border-blue-100">
+                                                    {s}
+                                                    <button onClick={() => removeSymptom(i)} className="text-blue-400 hover:text-red-500 transition">✕</button>
+                                                </span>
+                                            ))}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* IV. Khám bệnh */}
+                            <div className="bg-white border border-gray-200 rounded-xl p-5 mb-5 shadow-sm">
+                                <h3 className="text-sm font-bold text-blue-800 uppercase tracking-wide mb-4">IV. Khám bệnh</h3>
+                                <div className="space-y-4">
+                                    <div>
+                                        <label className="text-xs font-semibold text-gray-600 block mb-1">1. Khám Toàn thân</label>
+                                        <textarea value={formExamination.general} onChange={e => setFormExamination({...formExamination, general: e.target.value})} rows={2} className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 focus:ring-1 focus:ring-blue-500 outline-none resize-none placeholder-gray-400" placeholder="Da niêm mạc, hạch bạch huyết, tuyến giáp..." />
+                                    </div>
+                                    <div>
+                                        <label className="text-xs font-semibold text-gray-600 block mb-1">2. Khám Bộ phận</label>
+                                        <textarea value={formExamination.parts} onChange={e => setFormExamination({...formExamination, parts: e.target.value})} rows={3} className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 focus:ring-1 focus:ring-blue-500 outline-none resize-none placeholder-gray-400" placeholder="Tim mạch, hô hấp, tiêu hoá..." />
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            {/* V. Cận lâm sàng */}
+                            <div className="bg-white border border-gray-200 rounded-xl p-5 mb-5 shadow-sm">
+                                <h3 className="text-sm font-bold text-blue-800 uppercase tracking-wide mb-4">V. Cận lâm sàng</h3>
+                                <div className="space-y-4">
+                                    <div>
+                                        <label className="text-xs font-semibold text-gray-600 block mb-1">1. Xét nghiệm</label>
+                                        <textarea value={formParaclinical.tests} onChange={e => setFormParaclinical({...formParaclinical, tests: e.target.value})} rows={2} className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 focus:ring-1 focus:ring-blue-500 outline-none resize-none placeholder-gray-400" placeholder="Huyết học, Sinh hoá máy..." />
+                                    </div>
+                                    <div>
+                                        <label className="text-xs font-semibold text-gray-600 block mb-1">2. Chẩn đoán hình ảnh</label>
+                                        <textarea value={formParaclinical.imaging} onChange={e => setFormParaclinical({...formParaclinical, imaging: e.target.value})} rows={2} className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 focus:ring-1 focus:ring-blue-500 outline-none resize-none placeholder-gray-400" placeholder="Siêu âm, X-quang, MRI..." />
+                                    </div>
+                                    <div>
+                                        <label className="text-xs font-semibold text-gray-600 block mb-1">3. Thăm dò chức năng / Nội soi</label>
+                                        <textarea value={formParaclinical.endoscopy} onChange={e => setFormParaclinical({...formParaclinical, endoscopy: e.target.value})} rows={2} className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 focus:ring-1 focus:ring-blue-500 outline-none resize-none placeholder-gray-400" placeholder="Nội soi TMH, dạ dày, đo hô hấp..." />
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* VI. Tổng kết bệnh */}
+                            <div className="bg-white border border-gray-200 rounded-xl p-5 mb-5 shadow-sm">
+                                <h3 className="text-sm font-bold text-blue-800 uppercase tracking-wide mb-4">VI. Tổng kết bệnh</h3>
+                                <div className="space-y-4">
+                                    <div>
+                                        <label className="text-xs font-semibold text-gray-600 block mb-1">Chẩn đoán bệnh (*)</label>
                                         <input
                                             type="text"
-                                            placeholder="Liều dùng..."
-                                            value={formPrescriptionInput.dosage}
-                                            onChange={e => setFormPrescriptionInput({ ...formPrescriptionInput, dosage: e.target.value })}
-                                            className="px-3 py-2 bg-white border border-[#E2E8F0] rounded-lg text-sm text-[#1E293B] focus:outline-none"
-                                        />
-                                        <input
-                                            type="text"
-                                            placeholder="Thời gian..."
-                                            value={formPrescriptionInput.duration}
-                                            onChange={e => setFormPrescriptionInput({ ...formPrescriptionInput, duration: e.target.value })}
-                                            className="px-3 py-2 bg-white border border-[#E2E8F0] rounded-lg text-sm text-[#1E293B] focus:outline-none"
+                                            value={formDiagnosis}
+                                            onChange={e => setFormDiagnosis(e.target.value)}
+                                            placeholder="Nhập chẩn đoán xác định..."
+                                            className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 focus:ring-1 focus:ring-blue-500 outline-none"
                                         />
                                     </div>
-                                    <button
-                                        onClick={addPrescription}
-                                        type="button"
-                                        className="w-full py-2 bg-blue-600 text-white rounded-lg text-xs font-bold hover:bg-blue-700 transition"
-                                    >
-                                        + Thêm thuốc vào đơn
-                                    </button>
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <div>
+                                            <label className="text-xs font-semibold text-gray-600 block mb-1">Trạng thái hồ sơ</label>
+                                            <select
+                                                value={formStatus}
+                                                onChange={e => setFormStatus(e.target.value)}
+                                                className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 focus:ring-1 focus:ring-blue-500 outline-none"
+                                            >
+                                                <option value="Hoàn thành">Hoàn thành</option>
+                                                <option value="Đang điều trị">Đang điều trị</option>
+                                                <option value="Chờ kết quả">Chờ kết quả</option>
+                                                <option value="Chuyển viện">Chuyển viện</option>
+                                            </select>
+                                        </div>
+                                    </div>
                                 </div>
-                                <div className="space-y-2">
-                                    {formPrescriptions.map((p, i) => (
-                                        <div key={i} className="flex items-center justify-between p-3 bg-white border border-blue-100 rounded-xl shadow-sm">
-                                            <div className="flex items-center gap-3">
-                                                <div className="w-8 h-8 bg-blue-50 rounded-lg flex items-center justify-center text-base">💊</div>
-                                                <div>
-                                                    <p className="text-sm font-bold text-gray-800">{p.name}</p>
-                                                    <p className="text-[11px] text-gray-500">{p.dosage} | {p.duration}</p>
+                            </div>
+
+                            {/* VII. Điều trị & Theo dõi */}
+                            <div className="bg-white border border-gray-200 rounded-xl p-5 mb-5 shadow-sm">
+                                <h3 className="text-sm font-bold text-blue-800 uppercase tracking-wide mb-4">VII. Điều trị & Theo dõi</h3>
+                                
+                                <div className="space-y-4">
+                                    {/* 1. Đơn thuốc */}
+                                    <div>
+                                        <label className="text-xs font-semibold text-gray-600 block mb-2">1. Đơn thuốc thông minh</label>
+                                        <div className="space-y-3 mb-3 bg-gray-50 p-4 rounded-xl border border-gray-100">
+                                            <div className="flex flex-col gap-1">
+                                                <label className="text-[10px] text-gray-500 uppercase font-bold">Tên thuốc</label>
+                                                <input
+                                                    type="text"
+                                                    list="medicine-list"
+                                                    autoComplete="off"
+                                                    placeholder="Gõ hoặc chọn tên thuốc..."
+                                                    value={formPrescriptionInput.medicine_name}
+                                                    onChange={e => handleMedicineSelect(e.target.value)}
+                                                    className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm text-gray-900 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                                />
+                                                <datalist id="medicine-list">
+                                                    {MEDICINE_LIST.map((m) => (
+                                                        <option key={m.id} value={m.name} />
+                                                    ))}
+                                                </datalist>
+                                            </div>
+
+                                            <div className="grid grid-cols-3 gap-2">
+                                                <div className="flex flex-col gap-1">
+                                                    <label className="text-[10px] text-gray-500 uppercase font-bold">Mỗi lần</label>
+                                                    <select
+                                                        value={formPrescriptionInput.dosage_per_time}
+                                                        onChange={e => setFormPrescriptionInput({ ...formPrescriptionInput, dosage_per_time: Number(e.target.value) })}
+                                                        className="px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm text-gray-900 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                                    >
+                                                        <option value={0.5}>0.5 {formPrescriptionInput.unit}</option>
+                                                        <option value={1}>1 {formPrescriptionInput.unit}</option>
+                                                        <option value={1.5}>1.5 {formPrescriptionInput.unit}</option>
+                                                        <option value={2}>2 {formPrescriptionInput.unit}</option>
+                                                        <option value={3}>3 {formPrescriptionInput.unit}</option>
+                                                    </select>
+                                                </div>
+                                                <div className="flex flex-col gap-1">
+                                                    <label className="text-[10px] text-gray-500 uppercase font-bold">Tần suất</label>
+                                                    <select
+                                                        value={formPrescriptionInput.frequency_per_day}
+                                                        onChange={e => setFormPrescriptionInput({ ...formPrescriptionInput, frequency_per_day: Number(e.target.value) })}
+                                                        className="px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm text-gray-900 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                                    >
+                                                        <option value={1}>1 lần/ngày</option>
+                                                        <option value={2}>2 lần/ngày</option>
+                                                        <option value={3}>3 lần/ngày</option>
+                                                        <option value={4}>4 lần/ngày</option>
+                                                    </select>
+                                                </div>
+                                                <div className="flex flex-col gap-1">
+                                                    <label className="text-[10px] text-gray-500 uppercase font-bold">Số ngày</label>
+                                                    <div className="relative">
+                                                        <input
+                                                            type="number"
+                                                            min="1"
+                                                            value={formPrescriptionInput.total_days}
+                                                            onChange={e => setFormPrescriptionInput({ ...formPrescriptionInput, total_days: Number(e.target.value) })}
+                                                            className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm text-gray-900 focus:outline-none focus:ring-1 focus:ring-blue-500 pr-10"
+                                                        />
+                                                        <span className="absolute right-3 top-2 text-sm text-gray-400">ngày</span>
+                                                    </div>
                                                 </div>
                                             </div>
-                                            <button onClick={() => removePrescription(i)} className="p-1.5 text-red-400 hover:bg-red-50 rounded-lg transition">✕</button>
+                                            
+                                            <div className="flex flex-col gap-1">
+                                                <label className="text-[10px] text-gray-500 uppercase font-bold">Hướng dẫn thêm</label>
+                                                <input
+                                                    type="text"
+                                                    value={formPrescriptionInput.instruction}
+                                                    onChange={e => setFormPrescriptionInput({ ...formPrescriptionInput, instruction: e.target.value })}
+                                                    className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm text-gray-900 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                                    placeholder="Ví dụ: Uống sau ăn sáng/tối"
+                                                />
+                                            </div>
+
+                                            <div className="flex items-center justify-between mt-2 pt-2 border-t border-gray-100">
+                                                <span className="text-xs text-gray-600 font-medium">Tổng cộng:</span>
+                                                <span className="text-sm font-bold text-blue-700">
+                                                    {formPrescriptionInput.dosage_per_time * formPrescriptionInput.frequency_per_day * formPrescriptionInput.total_days} {formPrescriptionInput.unit}
+                                                </span>
+                                            </div>
+
+                                            <button
+                                                onClick={addPrescription}
+                                                type="button"
+                                                className="w-full mt-2 py-2 bg-blue-600 text-white rounded-lg text-xs font-bold hover:bg-blue-700 transition"
+                                            >
+                                                + Thêm thuốc vào đơn
+                                            </button>
+                                        </div>
+
+                                        <div className="space-y-2">
+                                            {formPrescriptions.map((p, i) => (
+                                                <div key={i} className="flex items-center justify-between p-3 bg-white border border-blue-100 rounded-xl shadow-sm">
+                                                    <div className="flex flex-1 items-start gap-3">
+                                                        <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center text-sm font-bold text-blue-600">💊</div>
+                                                        <div className="flex-1">
+                                                            <div className="flex justify-between items-center mb-1">
+                                                                <p className="text-sm font-bold text-gray-800">{p.medicine_name || p.name}</p>
+                                                                <span className="text-xs font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded-md">
+                                                                    TỔNG: {p.total_quantity || "N/A"} {p.unit || "Viên"}
+                                                                </span>
+                                                            </div>
+                                                            <div className="flex flex-wrap gap-2 text-[11px] text-gray-500 font-medium">
+                                                                <span className="bg-gray-100 px-2 py-0.5 rounded">Mỗi lần {p.dosage_per_time} {p.unit}</span>
+                                                                <span className="bg-gray-100 px-2 py-0.5 rounded">{p.frequency_per_day} lần/ngày</span>
+                                                                <span className="bg-gray-100 px-2 py-0.5 rounded">Trong {p.total_days} ngày</span>
+                                                            </div>
+                                                            <p className="text-[11px] text-gray-400 mt-1 italic">HD: {p.instruction}</p>
+                                                        </div>
+                                                    </div>
+                                                    <button onClick={() => removePrescription(i)} className="p-2 ml-2 text-red-400 hover:bg-red-50 hover:text-red-500 rounded-lg transition">✕</button>
+                                                </div>
+                                            ))}
                                         </div>
                                     </div>
 
+                                    {/* 2. Lời dặn */}
                                     <div>
-                                        <label className="text-xs font-semibold text-gray-600 block mb-1">3. Khám bộ phận</label>
-                                        <textarea value={formExamination.parts} onChange={e => setFormExamination({...formExamination, parts: e.target.value})} rows={3} className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 focus:ring-1 focus:ring-blue-500 outline-none resize-none placeholder-gray-400" placeholder="Khám cơ quan bị bệnh và các cơ quan liên quan..." />
+                                        <label className="text-xs font-semibold text-gray-600 block mb-1">2. Lời dặn bác sĩ</label>
+                                        <textarea value={formTreatment.advice} onChange={e => setFormTreatment({...formTreatment, advice: e.target.value})} rows={2} className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 focus:ring-1 focus:ring-blue-500 outline-none resize-none placeholder-gray-400" placeholder="Chế độ ăn uống, sinh hoạt, tập luyện..." />
                                     </div>
+
+
                                 </div>
                             </div>
 
@@ -949,7 +1195,22 @@ export default function MedicalRecordsPage() {
                                                                 <span className="text-gray-500 block text-xs mb-2">1. Đơn thuốc</span> 
                                                                 {record.prescriptions && record.prescriptions.length > 0 ? (
                                                                     <div className="space-y-2">
-                                                                        {record.prescriptions.map((p, i) => (
+                                                                        {parsedNotes.prescriptionItems && parsedNotes.prescriptionItems.length > 0 ? parsedNotes.prescriptionItems.map((p, i) => (
+                                                                            <div key={i} className="flex items-start p-3 bg-gray-50 border border-blue-100 rounded-xl">
+                                                                                <div className="flex-1">
+                                                                                    <div className="flex justify-between items-center mb-1">
+                                                                                        <p className="text-sm font-bold text-gray-800">{p.medicine_name}</p>
+                                                                                        <span className="text-[11px] font-bold text-blue-700 bg-blue-100 px-2 py-0.5 rounded-full">Tổng: {p.total_quantity} {p.unit}</span>
+                                                                                    </div>
+                                                                                    <div className="flex flex-wrap gap-2 text-[10px] text-gray-500">
+                                                                                        <span className="bg-white border border-gray-200 px-1.5 py-0.5 rounded">Mỗi lần: {p.dosage_per_time} {p.unit}</span>
+                                                                                        <span className="bg-white border border-gray-200 px-1.5 py-0.5 rounded">{p.frequency_per_day} lần/ngày</span>
+                                                                                        <span className="bg-white border border-gray-200 px-1.5 py-0.5 rounded">{p.total_days} ngày</span>
+                                                                                    </div>
+                                                                                    <p className="text-[11px] text-gray-600 mt-1 italic whitespace-pre-wrap">{p.instruction}</p>
+                                                                                </div>
+                                                                            </div>
+                                                                        )) : record.prescriptions.map((p, i) => (
                                                                             <div key={i} className="flex items-center justify-between p-3 bg-gray-50 border border-gray-200 rounded-xl">
                                                                                 <div className="flex-1">
                                                                                     <p className="text-sm font-bold text-gray-800">{p.name}</p>
