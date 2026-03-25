@@ -8,7 +8,7 @@ const User = require("../models/User");
  */
 exports.createEntry = async (req, res) => {
     try {
-        const { patientName, patientPhone, symptoms } = req.body;
+        const { patientName, patientPhone, symptoms, appointmentId } = req.body;
 
         if (!patientName || !symptoms) {
             return res.status(400).json({ message: "Họ tên và triệu chứng là bắt buộc" });
@@ -23,6 +23,7 @@ exports.createEntry = async (req, res) => {
             patientName: patientName.trim(),
             patientPhone: patientPhone?.trim() || "",
             symptoms: symptoms.trim(),
+            appointmentId: appointmentId || null,
             status: "pending",
             queueNumber,
             checkinDate: today,

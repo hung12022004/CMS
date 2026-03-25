@@ -27,6 +27,11 @@ const queueEntrySchema = new mongoose.Schema(
             ref: "User",
             default: null,
         },
+        appointmentId: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "Appointment",
+            default: null,
+        },
         triageNotes: {
             type: String,
             trim: true,

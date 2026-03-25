@@ -153,6 +153,7 @@ export default function AppointmentsPage() {
                     patientName: apt.patientId?.name || "Bệnh nhân",
                     patientPhone: apt.patientId?.phoneNumber || "",
                     symptoms: apt.reason || "Lịch hẹn định kỳ",
+                    appointmentId: apt._id,
                 });
                 // Assign doctor so it appears in doctor's queue directly (status: waiting)
                 if (queueRes?.entry?._id && apt.doctorId?._id) {
