@@ -303,9 +303,16 @@ export default function AppointmentsPage() {
                                         <span>{status.icon}</span>
                                         {status.label}
                                     </span>
-                                    <span className="text-gray-500 text-sm">
-                                        {appointment.type === "clinic" ? "🏥 Tại phòng khám" : "💻 Tư vấn Online"}
-                                    </span>
+                                    <div className="flex items-center gap-3">
+                                        {appointment.paymentStatus === "paid" && (
+                                            <span className="text-xs font-bold text-emerald-600 bg-emerald-100/80 px-2 py-0.5 rounded-full ring-1 ring-emerald-200">
+                                                💵 Đã thanh toán
+                                            </span>
+                                        )}
+                                        <span className="text-gray-500 text-sm">
+                                            {appointment.type === "clinic" ? "🏥 Tại phòng khám" : "💻 Tư vấn Online"}
+                                        </span>
+                                    </div>
                                 </div>
 
                                 {/* Content */}

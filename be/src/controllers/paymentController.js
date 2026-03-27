@@ -23,9 +23,7 @@ exports.confirmManualPayment = async (req, res) => {
 
         // Cập nhật trạng thái
         appointment.paymentStatus = "paid";
-        if (appointment.status === "pending") {
-            appointment.status = "confirmed";
-        }
+        // Bệnh nhân thanh toán xong vẫn chờ y tá xác nhận để tạo queue
         await appointment.save();
         
         return res.status(200).json({ 

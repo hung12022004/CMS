@@ -48,7 +48,7 @@ export default function CheckoutPage() {
         setError("");
         try {
             const res = await confirmManualPaymentApi(id);
-            setAppointment((prev) => ({ ...prev, paymentStatus: "paid", status: "confirmed" }));
+            setAppointment((prev) => ({ ...prev, paymentStatus: "paid" }));
             setInvoiceData({
                 orderCode: res.orderCode || appointment.orderCode || "N/A",
                 amount: res.amount || 300000
