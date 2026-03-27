@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
 import { getMedicalRecordsApi, createMedicalRecordApi, updateMedicalRecordApi } from "../services/medicalRecord.api";
 import { getPatientsApi } from "../services/user.api";
@@ -97,6 +97,7 @@ const COMMON_INSTRUCTIONS = [
 
 export default function MedicalRecordsPage() {
     const navigate = useNavigate();
+    const location = useLocation();
     const { user } = useAuth();
     // Layout & View State
     const [viewMode, setViewMode] = useState("list"); // 'list' or 'detail' (mostly used for mobile/fallback)
@@ -188,7 +189,7 @@ export default function MedicalRecordsPage() {
                 setPatientsList(patientsRes.patients || []);
 
                 // Check if we came from Appointments with a patient
-                const locationState = window.history.state?.usr;
+                const locationState = location.state;
                 if (locationState?.patientId && isDoctor) {
                     setSelectedPatientId(locationState.patientId);
                     setFormPatientId(locationState.patientId);
@@ -205,6 +206,9 @@ export default function MedicalRecordsPage() {
                     setSearchTerm(locationState.patientName);
                     if (locationState.queueEntryId) {
                         setFormQueueEntryId(locationState.queueEntryId);
+                    }
+                    if (locationState.appointmentId) {
+                        setFormAppointmentId(locationState.appointmentId);
                     }
                     
                     // Auto-select patient
@@ -227,7 +231,7 @@ export default function MedicalRecordsPage() {
             }
         };
         fetchData();
-    }, [isDoctor, isStaff, user?.email]);
+    }, [isDoctor, isStaff, user?.email, location.state]);
 
     useEffect(() => {
         // Reset selected record when patient changes
