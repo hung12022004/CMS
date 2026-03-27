@@ -6,5 +6,6 @@ const medicalRecordController = require("../controllers/medicalRecordController"
 
 router.get("/", auth, medicalRecordController.getMedicalRecords);
 router.post("/", auth, authorize("doctor"), medicalRecordController.createMedicalRecord);
+router.put("/:id", auth, authorize("doctor"), medicalRecordController.updateMedicalRecord);
 
 module.exports = router;

@@ -3,24 +3,52 @@ import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
 import { getDoctorByIdApi, getDoctorsApi } from "../services/user.api";
 import { createAppointmentApi, updateAppointmentDetailsApi } from "../services/appointment.api";
+import { getSchedulesApi } from "../services/schedule.api";
 
-// Generate time slots
-const generateTimeSlots = () => {
-    const slots = [];
-    for (let hour = 8; hour <= 17; hour++) {
-        if (hour !== 12) {
-            slots.push({
-                time: `${hour.toString().padStart(2, "0")}:00`,
-                available: true,
-            });
-            if (hour < 17) {
-                slots.push({
-                    time: `${hour.toString().padStart(2, "0")}:30`,
-                    available: true,
-                });
-            }
+// Generate time slots based on schedule
+const generateTimeSlots = (schedule) => {
+    let startHour = 8;
+    let startMinute = 0;
+    let endHour = 17;
+    let endMinute = 0;
+
+    if (schedule) {
+        if (!schedule.isWorking) return [];
+        if (schedule.startTime) {
+            const [h, m] = schedule.startTime.split(":");
+            startHour = parseInt(h);
+            startMinute = parseInt(m);
+        }
+        if (schedule.endTime) {
+            const [h, m] = schedule.endTime.split(":");
+            endHour = parseInt(h);
+            endMinute = parseInt(m);
         }
     }
+
+    const slots = [];
+    let currentHour = startHour;
+    let currentMinute = startMinute;
+
+    const startTotal = startHour * 60 + startMinute;
+    const endTotal = endHour * 60 + endMinute;
+
+    let currentTimeTotal = startTotal;
+
+    while (currentTimeTotal <= endTotal - 30) { 
+        if (currentHour !== 12) { // lunch break assumption
+             const timeStr = `${currentHour.toString().padStart(2, "0")}:${currentMinute === 0 ? "00" : "30"}`;
+             slots.push({ time: timeStr, available: true });
+        }
+        
+        currentMinute += 30;
+        if (currentMinute >= 60) {
+            currentHour += 1;
+            currentMinute -= 60;
+        }
+        currentTimeTotal += 30;
+    }
+
     return slots;
 };
 
@@ -119,7 +147,47 @@ export default function BookingPage() {
     }, [isReschedule, currentDate, dates]);
 
     const [selectedDate, setSelectedDate] = useState(initialDateObj);
-    const [timeSlots] = useState(generateTimeSlots);
+    const [timeSlots, setTimeSlots] = useState([]);
+    const [schedules, setSchedules] = useState([]);
+
+    // Fetch schedules for the 7 days
+    useEffect(() => {
+        const fetchSchedules = async () => {
+            if (!doctor || doctor.id === "quick") return;
+            try {
+                const startDateStr = `${dates[0].date.getFullYear()}-${String(dates[0].date.getMonth() + 1).padStart(2, "0")}-${String(dates[0].dayNum).padStart(2, "0")}`;
+                const endDateDate = dates[6].date;
+                const endDateStr = `${endDateDate.getFullYear()}-${String(endDateDate.getMonth() + 1).padStart(2, "0")}-${String(endDateDate.getDate()).padStart(2, "0")}`;
+                
+                const res = await getSchedulesApi({
+                    doctorId: doctor.id,
+                    startDate: startDateStr,
+                    endDate: endDateStr,
+                });
+                setSchedules(res.schedules || []);
+            } catch (err) {
+                console.error("Error fetching schedules:", err);
+            }
+        };
+        fetchSchedules();
+    }, [doctor, dates]);
+
+    // Update time slots when selected date or schedules change
+    useEffect(() => {
+        if (!selectedDate) return;
+        const dateStr = `${selectedDate.date.getFullYear()}-${String(selectedDate.date.getMonth() + 1).padStart(2, "0")}-${String(selectedDate.dayNum).padStart(2, "0")}`;
+        const scheduleToday = schedules.find(s => s.date === dateStr);
+        
+        const slots = generateTimeSlots(scheduleToday);
+        setTimeSlots(slots);
+        
+        // Reset selected time if it's no longer available
+        setSelectedTime(prev => {
+             if (prev && !slots.find(s => s.time === prev)) return null;
+             return prev;
+        });
+    }, [selectedDate, schedules]);
+
     const [selectedTime, setSelectedTime] = useState(isReschedule ? currentTime : null);
     const [consultationType, setConsultationType] = useState(isReschedule && currentType ? currentType : "clinic");
     const [reason, setReason] = useState(isReschedule && currentReason ? currentReason : "");
@@ -159,8 +227,9 @@ export default function BookingPage() {
                     type: consultationType,
                     reason: reason || "Khám tổng quát",
                 });
+                navigate(`/checkout/${appointmentId}`);
             } else {
-                await createAppointmentApi({
+                const res = await createAppointmentApi({
                     doctorId: finalDoctorId,
                     date: dateStr,
                     time: selectedTime,
@@ -168,14 +237,16 @@ export default function BookingPage() {
                     reason: reason || "Khám tổng quát",
                     address: consultationType === "clinic" ? "123 Nguyễn Văn Linh, Q.7, TP.HCM" : null,
                 });
+                navigate(`/checkout/${res.appointment._id}`);
             }
 
             setIsSubmitting(false);
-            // Navigate to appointments with success message
-            navigate("/appointments", { state: { bookingSuccess: true, message: isReschedule ? "Đổi lịch thành công!" : "Đặt lịch thành công!" } });
         } catch (err) {
             console.error("Error saving appointment:", err);
-            alert("Có lỗi xảy ra. Vui lòng thử lại.");
+            const errorMsg = err.response && err.response.data && err.response.data.message 
+                ? err.response.data.message 
+                : err.message;
+            alert(`Có lỗi xảy ra: ${errorMsg}\nVui lòng thử lại.`);
             setIsSubmitting(false);
         }
     };
@@ -294,9 +365,13 @@ export default function BookingPage() {
                             });
 
                             if (filteredSlots.length === 0) {
+                                const dateStr = `${selectedDate.date.getFullYear()}-${String(selectedDate.date.getMonth() + 1).padStart(2, "0")}-${String(selectedDate.dayNum).padStart(2, "0")}`;
+                                const scheduleToday = schedules.find(s => s.date === dateStr);
+                                const isDayOff = scheduleToday && !scheduleToday.isWorking;
+                                
                                 return (
                                     <div className="col-span-4 py-8 text-center bg-white rounded-2xl border-2 border-dashed border-gray-200">
-                                        <p className="text-gray-500 text-sm">Không có lịch khám khả dụng cho ngày này.</p>
+                                        <p className="text-gray-500 text-sm">{isDayOff ? "Bác sĩ nghỉ làm việc vào ngày này." : "Không có lịch khám khả dụng cho ngày này."}</p>
                                     </div>
                                 );
                             }

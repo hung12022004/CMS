@@ -37,6 +37,11 @@ const queueEntrySchema = new mongoose.Schema(
             trim: true,
             default: "",
         },
+        roomNumber: {
+            type: String,
+            trim: true,
+            default: "",
+        },
         queueNumber: {
             type: Number,
             default: 0,

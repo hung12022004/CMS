@@ -40,6 +40,14 @@ const appointmentSchema = new mongoose.Schema(
             trim: true,
             default: "",
         },
+        paymentStatus: {
+            type: String,
+            enum: ["unpaid", "paid", "refunded"],
+            default: "unpaid",
+        },
+        orderCode: {
+            type: Number,
+        },
         rating: {
             type: Number,
             min: 1,

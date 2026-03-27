@@ -59,9 +59,10 @@ exports.getEntries = async (req, res) => {
         let filter = {};
 
         if (role === "doctor") {
+            const today = new Date().toISOString().slice(0, 10);
             filter = {
                 doctorId: id,
-                status: { $in: ["waiting", "in_progress"] },
+                checkinDate: today,
             };
         } else if (role === "nurse" || role === "admin") {
             filter = { checkinDate: today };
@@ -84,12 +85,12 @@ exports.getEntries = async (req, res) => {
  * PATCH /api/v1/queue/:id/assign
  * Auth required — nurse/admin only
  * Y tá gán bác sĩ cho bệnh nhân
- * body: { doctorId, triageNotes? }
+ * body: { doctorId, triageNotes?, roomNumber? }
  */
 exports.assignDoctor = async (req, res) => {
     try {
         const { id } = req.params;
-        const { doctorId, triageNotes } = req.body;
+        const { doctorId, triageNotes, roomNumber } = req.body;
 
         if (!doctorId) {
             return res.status(400).json({ message: "doctorId là bắt buộc" });
@@ -113,6 +114,7 @@ exports.assignDoctor = async (req, res) => {
         entry.doctorId = doctorId;
         entry.status = "waiting";
         if (triageNotes) entry.triageNotes = triageNotes.trim();
+        if (roomNumber) entry.roomNumber = roomNumber.trim();
         await entry.save();
 
         const populated = await QueueEntry.findById(entry._id).populate("doctorId", "name specialty avatarUrl");
