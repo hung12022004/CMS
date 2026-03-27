@@ -6,6 +6,7 @@ const cors = require("cors");
 const path = require("path");
 
 const connectDB = require("./config/db");
+// ... (giữ nguyên các phần import routes)
 const authRoute = require("./route/authroute");
 const userRoute = require("./route/userRoute");
 const adminRoute = require("./route/adminRoute");
@@ -15,23 +16,31 @@ const reviewRoute = require("./route/reviewRoute");
 const queueRoute = require("./route/queueRoute");
 const scheduleRoute = require("./route/scheduleRoute");
 const paymentRoute = require("./route/paymentRoute");
+
 const app = express();
 
 app.use(morgan("dev"));
 
-// ✅ CORS (cho phép FE gọi từ Vite)
+// ✅ Cập nhật CORS để cho phép Vercel truy cập
 app.use(
   cors({
-    origin: ["http://localhost:5173"], // Vite default
-    credentials: true, // để sau này nếu dùng cookie cũng ok
+    origin: [
+      "http://localhost:5173", // Local khi bạn dev
+      "https://cms-five-mocha.vercel.app", // Thay bằng LINK VERCEL THẬT của bạn (không có dấu / ở cuối)
+    ],
+    credentials: true, // Quan trọng nếu bạn dùng session/cookie cho Login
+    methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
   })
 );
 
 app.use(express.json());
 
-// ✅ Serve static files (uploads)
+// ✅ Cấu hình lại đường dẫn Static files cho đúng trên Server
+// Nếu file server.js nằm trong src/, và folder uploads nằm cùng cấp với src/
 app.use("/uploads", express.static(path.join(__dirname, "../uploads")));
 
+// --- Routes ---
 app.use("/api/v1/auth", authRoute);
 app.use("/api/v1/users", userRoute);
 app.use("/api/v1/admin", adminRoute);
@@ -41,11 +50,13 @@ app.use("/api/v1/reviews", reviewRoute);
 app.use("/api/v1/queue", queueRoute);
 app.use("/api/v1/schedules", scheduleRoute);
 app.use("/api/v1/payments", paymentRoute);
-app.get("/", (req, res) => res.json({ ok: true, message: "API running" }));
 
-const PORT = process.env.PORT || 5000;
+app.get("/", (req, res) => res.json({ ok: true, message: "CMS API is running" }));
+
+// Port cho Render tự cấp
+const PORT = process.env.PORT || 10000;
 
 (async () => {
   await connectDB();
-  app.listen(PORT, () => console.log(`✅ Server running on port ${PORT}`));
+  app.listen(PORT, () => console.log(`✅ Server is live on port ${PORT}`));
 })();
