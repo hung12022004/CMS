@@ -26,8 +26,8 @@ export const getQueueEntriesApi = async () => {
  * Y tá gán bác sĩ
  * body: { doctorId, triageNotes? }
  */
-export const assignDoctorApi = async (id, doctorId, triageNotes = "") => {
-    const res = await api.patch(`/queue/${id}/assign`, { doctorId, triageNotes });
+export const assignDoctorApi = async (id, doctorId, triageNotes = "", roomNumber = "") => {
+    const res = await api.patch(`/queue/${id}/assign`, { doctorId, triageNotes, roomNumber });
     return res.data;
 };
 

@@ -76,3 +76,42 @@ exports.createMedicalRecord = async (req, res) => {
         return res.status(500).json({ message: "Server error" });
     }
 };
+
+// PUT /api/v1/medical-records/:id
+exports.updateMedicalRecord = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const doctorId = req.user.id;
+        const { diagnosis, symptoms, notes, vitals, status, prescriptions } = req.body;
+
+        const record = await MedicalRecord.findById(id);
+        if (!record) {
+            return res.status(404).json({ message: "Không tìm thấy hồ sơ" });
+        }
+
+        if (record.status === "Hoàn thành") {
+            return res.status(400).json({ message: "Không thể chỉnh sửa hồ sơ đã hoàn thành" });
+        }
+
+        if (record.doctorId.toString() !== doctorId && req.user.role !== "admin") {
+            return res.status(403).json({ message: "Không có quyền chỉnh sửa hồ sơ này" });
+        }
+
+        if (diagnosis) record.diagnosis = diagnosis;
+        if (symptoms) record.symptoms = symptoms;
+        if (notes !== undefined) record.notes = notes;
+        if (vitals) record.vitals = vitals;
+        if (status) record.status = status;
+        if (prescriptions) record.prescriptions = prescriptions;
+
+        await record.save();
+
+        return res.status(200).json({
+            message: "Cập nhật hồ sơ bệnh án thành công",
+            record,
+        });
+    } catch (err) {
+        console.error("updateMedicalRecord error:", err);
+        return res.status(500).json({ message: "Server error" });
+    }
+};

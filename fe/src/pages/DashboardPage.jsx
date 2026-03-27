@@ -28,19 +28,6 @@ const banners = [
 // Quick menu items — base set
 const quickMenuItems = [
     {
-        id: 1,
-        icon: (
-            <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13 10V3L4 14h7v7l9-11h-7z" />
-            </svg>
-        ),
-        label: "Khám tự động",
-        path: "/booking/quick",
-        color: "bg-blue-500",
-        lightColor: "bg-blue-50",
-        roles: ["patient"],
-    },
-    {
         id: 5,
         icon: (
             <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -51,6 +38,7 @@ const quickMenuItems = [
         path: "/doctors",
         color: "bg-teal-500",
         lightColor: "bg-teal-50",
+        roles: ["patient", "nurse"],
     },
     {
         id: 2,

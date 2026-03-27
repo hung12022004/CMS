@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
-import { getMedicalRecordsApi, createMedicalRecordApi } from "../services/medicalRecord.api";
+import { getMedicalRecordsApi, createMedicalRecordApi, updateMedicalRecordApi } from "../services/medicalRecord.api";
 import { getPatientsApi } from "../services/user.api";
 import { updateAppointmentStatusApi } from "../services/appointment.api";
 import { updateQueueStatusApi } from "../services/checkin.api";
@@ -106,6 +106,7 @@ export default function MedicalRecordsPage() {
     const [patientsList, setPatientsList] = useState([]);
     const [selectedPatientId, setSelectedPatientId] = useState(null);
     const [selectedRecordId, setSelectedRecordId] = useState(null);
+    const [editRecordId, setEditRecordId] = useState(null);
 
     const patientRefs = useRef({});
 
@@ -228,6 +229,7 @@ export default function MedicalRecordsPage() {
     useEffect(() => {
         // Reset selected record when patient changes
         setSelectedRecordId(null);
+        setEditRecordId(null);
         setShowForm(false);
         
         // Scroll to selected patient in the sidebar
@@ -335,6 +337,39 @@ export default function MedicalRecordsPage() {
         setFormPrescriptions(formPrescriptions.filter((_, i) => i !== idx));
     };
 
+    const handleEditRecord = (record) => {
+        setEditRecordId(record._id);
+        setFormPatientId(record.patientId?._id || record.patientId);
+        setFormDiagnosis(record.diagnosis || "");
+        setFormStatus(record.status || "Hoàn thành");
+        setFormVitals(record.vitals || { weight: "", bloodPressure: "", heartRate: "", temperature: "", spo2: "" });
+        setFormSymptoms(record.symptoms || []);
+        setFormSymptomInput("");
+        setFormPrescriptions(record.prescriptions || []);
+
+        const parsedNotes = getParsedNotes(record.notes);
+        if (parsedNotes && parsedNotes.anamnesis) {
+            setFormAdminInfo(parsedNotes.adminInfo || { occupation: "", idCard: "", address: "", relativePhone: "" });
+            setFormMedicalMgmt(parsedNotes.medicalMgmt || { recordNumber: "", objectType: "Dịch vụ" });
+            setFormAnamnesis(parsedNotes.anamnesis || { reason: "" });
+            setFormExamination(parsedNotes.examination || { general: "", parts: "" });
+            setFormParaclinical(parsedNotes.paraclinical || { tests: "", imaging: "", endoscopy: "" });
+            setFormTreatment(parsedNotes.treatment || { advice: "", followUp: "" });
+            setFormNotes(parsedNotes.generalNotes || "");
+        } else {
+            setFormAdminInfo({ occupation: "", idCard: "", address: "", relativePhone: "" });
+            setFormMedicalMgmt({ recordNumber: "", objectType: "Dịch vụ" });
+            setFormAnamnesis({ reason: "" });
+            setFormExamination({ general: "", parts: "" });
+            setFormParaclinical({ tests: "", imaging: "", endoscopy: "" });
+            setFormTreatment({ advice: "", followUp: "" });
+            setFormNotes(record.notes || "");
+        }
+        
+        setSelectedRecordId(null);
+        setShowForm(true);
+    };
+
     const handleSaveRecord = async () => {
         const targetPatientId = formPatientId || selectedPatientId;
         if (!targetPatientId || !formDiagnosis.trim()) return;
@@ -359,7 +394,7 @@ export default function MedicalRecordsPage() {
         }
 
         try {
-            const res = await createMedicalRecordApi({
+            const payload = {
                 patientId: targetPatientId,
                 diagnosis: formDiagnosis.trim(),
                 symptoms: finalSymptoms,
@@ -373,7 +408,14 @@ export default function MedicalRecordsPage() {
                     duration: p.total_days ? `${p.total_days} ngày` : p.duration,
                     instructions: p.frequency_per_day ? `Ngày uống ${p.frequency_per_day} lần. Tổng: ${p.total_quantity} ${p.unit || 'Viên'}. HD: ${p.instruction || ""}` : (p.instructions || "")
                 }))
-            });
+            };
+
+            let res;
+            if (editRecordId) {
+                res = await updateMedicalRecordApi(editRecordId, payload);
+            } else {
+                res = await createMedicalRecordApi(payload);
+            }
 
             if (res.record) {
                 if (formAppointmentId) {
@@ -415,6 +457,7 @@ export default function MedicalRecordsPage() {
                 setFormParaclinical({ tests: "", imaging: "", endoscopy: "" });
                 setFormTreatment({ advice: "", followUp: "" });
                 setShowForm(false);
+                setEditRecordId(null);
             }
         } catch (err) {
             console.error("Error saving medical record:", err);
@@ -626,7 +669,22 @@ export default function MedicalRecordsPage() {
                 <div className="p-5 border-b flex items-center justify-between bg-white sticky top-0 z-10">
                     <h2 className="text-xl font-bold text-[#1E293B]">Lịch sử khám</h2>
                     <button
-                        onClick={() => setShowForm(true)}
+                        onClick={() => {
+                            setEditRecordId(null);
+                            setFormDiagnosis("");
+                            setFormSymptoms([]);
+                            setFormSymptomInput("");
+                            setFormNotes("");
+                            setFormVitals({ weight: "", bloodPressure: "", heartRate: "", temperature: "", spo2: "" });
+                            setFormPrescriptions([]);
+                            setFormAdminInfo({ occupation: "", idCard: "", address: "", relativePhone: "" });
+                            setFormMedicalMgmt({ recordNumber: "", objectType: "Dịch vụ" });
+                            setFormAnamnesis({ reason: "" });
+                            setFormExamination({ general: "", parts: "" });
+                            setFormParaclinical({ tests: "", imaging: "", endoscopy: "" });
+                            setFormTreatment({ advice: "", followUp: "" });
+                            setShowForm(true);
+                        }}
                         className="px-4 py-2 bg-blue-600 text-white rounded-xl text-sm font-bold shadow-md hover:bg-blue-700 transition-all flex items-center gap-2"
                     >
                         + Thêm hồ sơ
@@ -1065,9 +1123,19 @@ export default function MedicalRecordsPage() {
                                         <h2 className="text-xl font-bold text-[#1E293B]">Chi tiết hồ sơ</h2>
                                         <p className="text-xs text-[#64748B] mt-1">{formatDate(record.date)}</p>
                                     </div>
-                                    <button onClick={() => setSelectedRecordId(null)} className="text-[#94A3B8] hover:text-[#475569] text-sm flex items-center gap-1">
-                                        ✕ Đóng
-                                    </button>
+                                    <div className="flex items-center gap-3">
+                                        {record.status !== "Hoàn thành" && (
+                                            <button 
+                                                onClick={() => handleEditRecord(record)} 
+                                                className="text-blue-600 hover:text-blue-700 text-sm font-bold flex items-center gap-1 bg-blue-50 px-3 py-1.5 rounded-lg border border-blue-100 transition"
+                                            >
+                                                ✎ Sửa hồ sơ
+                                            </button>
+                                        )}
+                                        <button onClick={() => setSelectedRecordId(null)} className="text-[#94A3B8] hover:text-[#475569] text-sm flex items-center gap-1">
+                                            ✕ Đóng
+                                        </button>
+                                    </div>
                                 </div>
 
                                 <div className="flex-1 overflow-y-auto p-5 bg-[#F8FAFC]">

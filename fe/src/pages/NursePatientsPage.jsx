@@ -28,6 +28,7 @@ function AssignDoctorModal({ entry, onClose, onAssigned }) {
     const [doctors, setDoctors] = useState([]);
     const [selectedDoctor, setSelectedDoctor] = useState(null);
     const [triageNotes, setTriageNotes] = useState("");
+    const [roomNumber, setRoomNumber] = useState("");
     const [loading, setLoading] = useState(false);
     const [loadingDoctors, setLoadingDoctors] = useState(true);
     const [filter, setFilter] = useState("");
@@ -49,7 +50,7 @@ function AssignDoctorModal({ entry, onClose, onAssigned }) {
         if (!selectedDoctor) return;
         setLoading(true);
         try {
-            const data = await assignDoctorApi(entry._id, selectedDoctor._id, triageNotes);
+            const data = await assignDoctorApi(entry._id, selectedDoctor._id, triageNotes, roomNumber);
             onAssigned(data.entry);
         } catch (err) {
             console.error("assignDoctor error:", err);
@@ -87,7 +88,19 @@ function AssignDoctorModal({ entry, onClose, onAssigned }) {
                             value={triageNotes}
                             onChange={(e) => setTriageNotes(e.target.value)}
                             placeholder="VD: Dự kiến cần xét nghiệm máu..."
-                            className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-blue-400 resize-none"
+                            className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm text-gray-900 focus:outline-none focus:border-blue-400 resize-none"
+                        />
+                    </div>
+
+                    {/* Room Number */}
+                    <div>
+                        <label className="text-xs font-semibold text-gray-600 mb-1 block">🚪 Số phòng khám (tuỳ chọn)</label>
+                        <input
+                            type="text"
+                            value={roomNumber}
+                            onChange={(e) => setRoomNumber(e.target.value)}
+                            placeholder="VD: P101, P2, Phòng Xét nghiệm..."
+                            className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm text-gray-900 focus:outline-none focus:border-teal-400"
                         />
                     </div>
 
@@ -99,7 +112,7 @@ function AssignDoctorModal({ entry, onClose, onAssigned }) {
                             value={filter}
                             onChange={(e) => setFilter(e.target.value)}
                             placeholder="Tìm tên hoặc chuyên khoa..."
-                            className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-blue-400 mb-2"
+                            className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm text-gray-900 focus:outline-none focus:border-blue-400 mb-2"
                         />
                         <div className="space-y-2 max-h-52 overflow-y-auto">
                             {loadingDoctors ? (
@@ -357,6 +370,11 @@ export default function NursePatientsPage() {
                                                 <p className="text-xs text-indigo-600 font-medium">
                                                     👨‍⚕️ Bác sĩ: <span className="font-bold">{entry.doctorId.name}</span>
                                                     {entry.doctorId.specialty && <span className="text-gray-400"> ({entry.doctorId.specialty})</span>}
+                                                </p>
+                                            )}
+                                            {entry.roomNumber && (
+                                                <p className="text-xs text-teal-600 font-semibold mt-0.5">
+                                                    🚪 Phòng khám: <span className="font-bold">{entry.roomNumber}</span>
                                                 </p>
                                             )}
                                             {entry.triageNotes && (
