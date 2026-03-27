@@ -5,6 +5,7 @@ const authorize = require("../middlewares/authorize");
 const appointmentController = require("../controllers/appointmentController");
 
 router.get("/", auth, appointmentController.getAppointments);
+router.get("/booked", auth, appointmentController.getBookedSlots);
 router.post("/", auth, appointmentController.createAppointment);
 router.patch("/:id", auth, appointmentController.updateAppointment); // Cập nhật chi tiết
 router.patch("/:id/status", auth, authorize("doctor", "nurse", "admin", "patient"), appointmentController.updateStatus);
