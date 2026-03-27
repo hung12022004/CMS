@@ -38,7 +38,7 @@ const quickMenuItems = [
         path: "/doctors",
         color: "bg-teal-500",
         lightColor: "bg-teal-50",
-        roles: ["patient", "nurse"],
+        roles: ["patient"],
     },
     {
         id: 2,

@@ -1,14 +1,13 @@
 {
   "name": "be",
   "version": "1.0.0",
-  "description": "",
-  "license": "ISC",
-  "author": "mitsu",
+  "description": "Clinic Management System Backend",
+  "main": "src/server.js",
   "type": "commonjs",
-  "main": "index.js",
   "scripts": {
-    "test": "jest",
-    "dev": "nodemon src/server.js"
+    "start": "node src/server.js",
+    "dev": "nodemon src/server.js",
+    "test": "jest"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",

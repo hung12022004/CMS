@@ -301,7 +301,7 @@ export default function DoctorsPage() {
                                             <span className="font-semibold text-gray-800">{doctor.rating}</span>
                                         </div>
                                         <span className="text-gray-400">•</span>
-                                        <span className="text-gray-500 text-sm">{doctor.reviews} đánh giá</span>
+                                        <span className="text-gray-500 text-sm">{doctor.reviewsCount || 0} đánh giá</span>
                                         <span className="text-gray-400">•</span>
                                         <span className="text-gray-500 text-sm">{doctor.experience}</span>
                                     </div>

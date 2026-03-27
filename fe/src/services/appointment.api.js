@@ -5,6 +5,11 @@ export const getAppointmentsApi = async () => {
     return data;
 };
 
+export const getBookedSlotsApi = async (params) => {
+    const { data } = await api.get("/appointments/booked", { params });
+    return data;
+};
+
 export const createAppointmentApi = async (appointmentData) => {
     const { data } = await api.post("/appointments", appointmentData);
     return data;

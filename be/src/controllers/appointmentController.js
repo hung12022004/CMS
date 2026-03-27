@@ -200,7 +200,7 @@ exports.reviewAppointment = async (req, res) => {
         if (doctor) {
             const allRatedAppointments = await Appointment.find({
                 doctorId,
-                rating: { $exists: true },
+                rating: { $exists: true, $ne: null },
             });
 
             const totalRating = allRatedAppointments.reduce((sum, app) => sum + app.rating, 0);
@@ -218,6 +218,31 @@ exports.reviewAppointment = async (req, res) => {
         });
     } catch (err) {
         console.error("reviewAppointment error:", err);
+        return res.status(500).json({ message: "Server error" });
+    }
+};
+
+/**
+ * GET /api/v1/appointments/booked
+ * Lấy danh sách giờ đã đặt của 1 bác sĩ trong 1 khoảng thời gian
+ * query: ?doctorId=...&startDate=...&endDate=...
+ */
+exports.getBookedSlots = async (req, res) => {
+    try {
+        const { doctorId, startDate, endDate } = req.query;
+        if (!doctorId || !startDate || !endDate) {
+            return res.status(400).json({ message: "Thiếu doctorId, startDate hoặc endDate" });
+        }
+
+        const appointments = await Appointment.find({
+            doctorId,
+            date: { $gte: startDate, $lte: endDate },
+            status: { $in: ["pending", "confirmed", "checked-in"] }
+        }).select("date time");
+
+        return res.status(200).json({ bookedSlots: appointments });
+    } catch (err) {
+        console.error("getBookedSlots error:", err);
         return res.status(500).json({ message: "Server error" });
     }
 };
