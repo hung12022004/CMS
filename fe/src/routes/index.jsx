@@ -16,6 +16,7 @@ import UnauthorizedPage from "../pages/UnauthorizedPage";
 import DashboardPage from "../pages/DashboardPage";
 import DoctorsPage from "../pages/DoctorsPage";
 import BookingPage from "../pages/BookingPage";
+import CheckoutPage from "../pages/CheckoutPage";
 import AppointmentsPage from "../pages/AppointmentsPage";
 import MedicalRecordsPage from "../pages/MedicalRecordsPage";
 
@@ -59,6 +60,7 @@ export default function AppRoutes() {
         >
           <Route path="/doctors" element={<DoctorsPage />} />
           <Route path="/booking/:doctorId" element={<BookingPage />} />
+          <Route path="/checkout/:id" element={<CheckoutPage />} />
         </Route>
 
         {/* Patient + Doctor + Nurse */}

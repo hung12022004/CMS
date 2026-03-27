@@ -106,7 +106,7 @@ function EditSlotModal({ slot, onClose, onSaved }) {
                                     type="time"
                                     value={form.startTime}
                                     onChange={(e) => setForm((f) => ({ ...f, startTime: e.target.value }))}
-                                    className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-teal-400"
+                                    className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm text-gray-900 focus:outline-none focus:border-teal-400"
                                 />
                             </div>
                             <div>
@@ -115,7 +115,7 @@ function EditSlotModal({ slot, onClose, onSaved }) {
                                     type="time"
                                     value={form.endTime}
                                     onChange={(e) => setForm((f) => ({ ...f, endTime: e.target.value }))}
-                                    className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-teal-400"
+                                    className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm text-gray-900 focus:outline-none focus:border-teal-400"
                                 />
                             </div>
                         </div>
@@ -127,7 +127,7 @@ function EditSlotModal({ slot, onClose, onSaved }) {
                             value={form.notes}
                             onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))}
                             placeholder="VD: Trực cấp cứu, ngoài giờ..."
-                            className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-teal-400"
+                            className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm text-gray-900 focus:outline-none focus:border-teal-400"
                         />
                     </div>
                 </div>

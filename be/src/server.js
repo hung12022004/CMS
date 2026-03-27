@@ -14,6 +14,7 @@ const medicalRecordRoute = require("./route/medicalRecordRoute");
 const reviewRoute = require("./route/reviewRoute");
 const queueRoute = require("./route/queueRoute");
 const scheduleRoute = require("./route/scheduleRoute");
+const paymentRoute = require("./route/paymentRoute");
 const app = express();
 
 app.use(morgan("dev"));
@@ -39,6 +40,7 @@ app.use("/api/v1/medical-records", medicalRecordRoute);
 app.use("/api/v1/reviews", reviewRoute);
 app.use("/api/v1/queue", queueRoute);
 app.use("/api/v1/schedules", scheduleRoute);
+app.use("/api/v1/payments", paymentRoute);
 app.get("/", (req, res) => res.json({ ok: true, message: "API running" }));
 
 const PORT = process.env.PORT || 5000;
