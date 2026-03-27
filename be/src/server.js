@@ -22,13 +22,22 @@ const app = express();
 app.use(morgan("dev"));
 
 // ✅ Cập nhật CORS để cho phép Vercel truy cập
+// ✅ Cập nhật CORS thông minh: Cho phép Local, Link chính và mọi Link preview của Vercel
 app.use(
   cors({
-    origin: [
-      "http://localhost:5173", // Local khi bạn dev
-      "https://cms-five-mocha.vercel.app", // Thay bằng LINK VERCEL THẬT của bạn (không có dấu / ở cuối)
-    ],
-    credentials: true, // Quan trọng nếu bạn dùng session/cookie cho Login
+    origin: function (origin, callback) {
+      const allowedOrigins = [
+        "http://localhost:5173",
+        "https://cms-five-mocha.vercel.app"
+      ];
+      // Cho phép nếu: không có origin (như Postman), nằm trong list, hoặc đuôi là .vercel.app
+      if (!origin || allowedOrigins.includes(origin) || origin.endsWith(".vercel.app")) {
+        callback(null, true);
+      } else {
+        callback(new Error("Not allowed by CORS"));
+      }
+    },
+    credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
   })
