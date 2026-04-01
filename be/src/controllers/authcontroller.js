@@ -157,7 +157,7 @@ exports.login = async (req, res) => {
     }
 
     const normalizedEmail = String(email).toLowerCase().trim();
-    const user = await User.findOne({ email: normalizedEmail });
+    const user = await User.findOne({ email: normalizedEmail }).select("+passwordHash");
 
     if (!user) {
       return res.status(401).json({ message: "Sai email hoặc password" });

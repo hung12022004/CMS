@@ -19,12 +19,13 @@ const NAV_BY_ROLE = {
   ],
   doctor: [
     { label: "Dashboard", path: "/dashboard" },
-    { label: "Bệnh nhân hẹn khám", path: "/appointments" },
+    { label: "🩺 Bệnh nhân hôm nay", path: "/doctor/queue" },
     { label: "Danh sách bệnh nhân", path: "/medical-records" },
   ],
   nurse: [
     { label: "Dashboard", path: "/dashboard" },
-    { label: "DS bệnh nhân", path: "/nurse/patients" },
+    { label: "👩‍⚕️ Điều phối", path: "/nurse/patients" },
+    { label: "📅 Xếp lịch bác sĩ", path: "/nurse/schedule" },
     { label: "Lịch hẹn", path: "/appointments" },
   ],
   admin: [
@@ -90,7 +91,7 @@ export default function Header() {
   if (!user) {
     return (
       <header className="fixed top-0 left-0 right-0 z-50 bg-white border-b border-gray-200 shadow-2xl">
-        <div className="mx-auto max-w-5xl px-4 py-4 flex justify-between">
+        <div className="mx-auto max-w-5xl px-4 py-4 flex justify-between items-center">
           <p
             onClick={() => navigate("/")}
             className="font-poppins font-bold text-4xl text-gray-900 cursor-pointer"
@@ -99,11 +100,11 @@ export default function Header() {
           </p>
 
           <button
-            onClick={() => navigate("/login")}
-            className="px-4 py-2 rounded-lg border border-gray-300 text-gray-900 hover:bg-gray-100"
-          >
-            Đăng nhập
-          </button>
+              onClick={() => navigate("/login")}
+              className="px-4 py-2 rounded-lg border border-gray-300 text-gray-900 hover:bg-gray-100"
+            >
+              Đăng nhập
+            </button>
         </div>
       </header>
     );

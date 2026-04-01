@@ -1,4 +1,6 @@
 const MedicalRecord = require("../models/MedicalRecord");
+const User = require("../models/User");
+const { sendMedicalRecordEmail } = require("../utils/mailer");
 
 // GET /api/v1/medical-records
 exports.getMedicalRecords = async (req, res) => {
@@ -48,12 +50,68 @@ exports.createMedicalRecord = async (req, res) => {
             prescriptions: prescriptions || [],
         });
 
+        // Send email notification to patient
+        try {
+            const patient = await User.findById(patientId);
+            const doctor = await User.findById(doctorId);
+            if (patient && patient.email) {
+                sendMedicalRecordEmail({
+                    to: patient.email,
+                    patientName: patient.name,
+                    doctorName: doctor ? doctor.name : "Bác sĩ",
+                    date: date,
+                    diagnosis: diagnosis
+                }).catch(err => console.error("Email notification background error:", err));
+            }
+        } catch (mailErr) {
+            console.error("Failed to prepare email notification:", mailErr);
+        }
+
         return res.status(201).json({
             message: "Tạo hồ sơ bệnh án thành công",
             record: newRecord,
         });
     } catch (err) {
         console.error("createMedicalRecord error:", err);
+        return res.status(500).json({ message: "Server error" });
+    }
+};
+
+// PUT /api/v1/medical-records/:id
+exports.updateMedicalRecord = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const doctorId = req.user.id;
+        const { diagnosis, symptoms, notes, vitals, status, prescriptions } = req.body;
+
+        const record = await MedicalRecord.findById(id);
+        if (!record) {
+            return res.status(404).json({ message: "Không tìm thấy hồ sơ" });
+        }
+
+        if (record.status === "Hoàn thành") {
+            return res.status(400).json({ message: "Không thể chỉnh sửa hồ sơ đã hoàn thành" });
+        }
+
+        if (record.doctorId.toString() !== doctorId && req.user.role !== "admin") {
+            return res.status(403).json({ message: "Không có quyền chỉnh sửa hồ sơ này" });
+        }
+
+        if (diagnosis) record.diagnosis = diagnosis;
+        if (symptoms) record.symptoms = symptoms;
+        if (notes !== undefined) record.notes = notes;
+        if (vitals) record.vitals = vitals;
+        if (status) record.status = status;
+        if (prescriptions) record.prescriptions = prescriptions;
+
+        await record.save();
+
+        return res.status(200).json({
+            message: "Cập nhật hồ sơ bệnh án thành công",
+            record,
+        });
+    } catch (err) {
+        console.error("updateMedicalRecord error:", err);
         return res.status(500).json({ message: "Server error" });
     }
 };

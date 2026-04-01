@@ -8,7 +8,7 @@ import { useAuth } from "../hooks/useAuth";
 function getRedirectByRole(role) {
   switch (role) {
     case "admin": return "/dashboard";
-    case "doctor": return "/appointments";
+    case "doctor": return "/dashboard";
     case "nurse": return "/dashboard";
     default: return "/";
   }

@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
 import { getAppointmentsApi, updateAppointmentStatusApi, reviewAppointmentApi } from "../services/appointment.api";
+import { createQueueEntryApi, assignDoctorApi } from "../services/checkin.api";
 
 // Mock appointments data (Doctor/Nurse view - hiển thị bệnh nhân) - fallback demo
 const mockDoctorAppointments = {
@@ -141,8 +142,31 @@ export default function AppointmentsPage() {
         }
     };
 
-    const handleConfirm = (appointmentId) => {
-        updateStatus(appointmentId, "confirmed");
+    const handleConfirm = async (appointmentId) => {
+        try {
+            await updateAppointmentStatusApi(appointmentId, "confirmed");
+
+            // Auto-create queue entry so patient appears in doctor's queue
+            const apt = appointmentsList.find(a => a._id === appointmentId);
+            if (apt) {
+                const queueRes = await createQueueEntryApi({
+                    patientName: apt.patientId?.name || "Bệnh nhân",
+                    patientPhone: apt.patientId?.phoneNumber || "",
+                    symptoms: apt.reason || "Lịch hẹn định kỳ",
+                    appointmentId: apt._id,
+                });
+                // Assign doctor so it appears in doctor's queue directly (status: waiting)
+                if (queueRes?.entry?._id && apt.doctorId?._id) {
+                    await assignDoctorApi(queueRes.entry._id, apt.doctorId._id, `Lịch hẹn ${apt.date} ${apt.time}`);
+                }
+            }
+
+            const res = await getAppointmentsApi();
+            setAppointmentsList(res.appointments || []);
+        } catch (err) {
+            console.error("handleConfirm error:", err);
+            alert("Có lỗi xảy ra khi xác nhận lịch hẹn");
+        }
     };
 
     const handleCancel = (appointmentId) => {
@@ -193,6 +217,10 @@ export default function AppointmentsPage() {
             setSelectedAppointment(null);
             setRating(5);
             setComment("");
+            
+            // Refetch appointments so the UI shows it as "Rated"
+            const res = await getAppointmentsApi();
+            setAppointmentsList(res.appointments || []);
         } catch (err) {
             console.error("Error submitting review:", err);
             alert(err.response?.data?.message || "Có lỗi xảy ra khi gửi đánh giá");
@@ -275,9 +303,16 @@ export default function AppointmentsPage() {
                                         <span>{status.icon}</span>
                                         {status.label}
                                     </span>
-                                    <span className="text-gray-500 text-sm">
-                                        {appointment.type === "clinic" ? "🏥 Tại phòng khám" : "💻 Tư vấn Online"}
-                                    </span>
+                                    <div className="flex items-center gap-3">
+                                        {appointment.paymentStatus === "paid" && (
+                                            <span className="text-xs font-bold text-emerald-600 bg-emerald-100/80 px-2 py-0.5 rounded-full ring-1 ring-emerald-200">
+                                                💵 Đã thanh toán
+                                            </span>
+                                        )}
+                                        <span className="text-gray-500 text-sm">
+                                            {appointment.type === "clinic" ? "🏥 Tại phòng khám" : "💻 Tư vấn Online"}
+                                        </span>
+                                    </div>
                                 </div>
 
                                 {/* Content */}
@@ -412,15 +447,24 @@ export default function AppointmentsPage() {
                                                 Xem hồ sơ
                                             </button>
                                             {!isStaffView && (
-                                                <button
-                                                    onClick={() => setSelectedAppointment(appointment)}
-                                                    className="flex items-center gap-2 px-4 py-2 bg-amber-50 text-amber-700 rounded-xl hover:bg-amber-100 transition-colors"
-                                                >
-                                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
-                                                    </svg>
-                                                    Đánh giá
-                                                </button>
+                                                appointment.rating ? (
+                                                    <span className="flex items-center gap-2 px-4 py-2 text-gray-500 rounded-xl bg-gray-50 border border-gray-100">
+                                                        <svg className="w-4 h-4 text-yellow-500 fill-current" viewBox="0 0 20 20">
+                                                            <path d="M10 15l-5.878 3.09 1.123-6.545L.489 6.91l6.572-.955L10 0l2.939 5.955 6.572.955-4.756 4.635 1.123 6.545z" />
+                                                        </svg>
+                                                        Đã đánh giá {appointment.rating} sao
+                                                    </span>
+                                                ) : (
+                                                    <button
+                                                        onClick={() => setSelectedAppointment(appointment)}
+                                                        className="flex items-center gap-2 px-4 py-2 bg-amber-50 text-amber-700 rounded-xl hover:bg-amber-100 transition-colors"
+                                                    >
+                                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
+                                                        </svg>
+                                                        Đánh giá
+                                                    </button>
+                                                )
                                             )}
                                         </div>
                                     )}

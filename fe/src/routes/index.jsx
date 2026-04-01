@@ -16,15 +16,20 @@ import UnauthorizedPage from "../pages/UnauthorizedPage";
 import DashboardPage from "../pages/DashboardPage";
 import DoctorsPage from "../pages/DoctorsPage";
 import BookingPage from "../pages/BookingPage";
+import CheckoutPage from "../pages/CheckoutPage";
 import AppointmentsPage from "../pages/AppointmentsPage";
 import MedicalRecordsPage from "../pages/MedicalRecordsPage";
-import PrescriptionsPage from "../pages/PrescriptionsPage";
 
 // Admin Pages
 import AdminUsersPage from "../pages/AdminUsersPage";
 
 // Nurse Pages
 import NursePatientsPage from "../pages/NursePatientsPage";
+import NurseSchedulePage from "../pages/NurseSchedulePage";
+
+// Check-in & Doctor Queue
+import CheckInPage from "../pages/CheckInPage";
+import DoctorQueuePage from "../pages/DoctorQueuePage";
 
 export default function AppRoutes() {
   return (
@@ -38,6 +43,8 @@ export default function AppRoutes() {
         <Route path="/reset-password" element={<ResetPassword />} />
         <Route path="/verify-otp" element={<VerifyOtpPage />} />
         <Route path="/unauthorized" element={<UnauthorizedPage />} />
+        {/* Walk-in check-in — no login required */}
+        <Route path="/checkin" element={<CheckInPage />} />
 
         {/* Protected: Tất cả user đã đăng nhập */}
         <Route element={<ProtectedRoute allowedRoles={[]} />}>
@@ -53,6 +60,7 @@ export default function AppRoutes() {
         >
           <Route path="/doctors" element={<DoctorsPage />} />
           <Route path="/booking/:doctorId" element={<BookingPage />} />
+          <Route path="/checkout/:id" element={<CheckoutPage />} />
         </Route>
 
         {/* Patient + Doctor + Nurse */}
@@ -65,12 +73,17 @@ export default function AppRoutes() {
         >
           <Route path="/appointments" element={<AppointmentsPage />} />
           <Route path="/medical-records" element={<MedicalRecordsPage />} />
-          <Route path="/prescriptions" element={<PrescriptionsPage />} />
         </Route>
 
         {/* Nurse only */}
         <Route element={<ProtectedRoute allowedRoles={["nurse"]} />}>
           <Route path="/nurse/patients" element={<NursePatientsPage />} />
+          <Route path="/nurse/schedule" element={<NurseSchedulePage />} />
+        </Route>
+
+        {/* Doctor only */}
+        <Route element={<ProtectedRoute allowedRoles={["doctor"]} />}>
+          <Route path="/doctor/queue" element={<DoctorQueuePage />} />
         </Route>
 
         {/* Dashboard: tất cả role đã đăng nhập */}
