@@ -208,11 +208,11 @@ function ImportModal({ onClose, onImported, defaultStartDate }) {
                 <div className="p-6 space-y-4">
                     <div>
                         <label className="text-sm font-semibold text-gray-600 mb-1 block">Ngày đầu tuần (Thứ 2)</label>
-                        <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-teal-400" />
+                        <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm text-gray-900 focus:outline-none focus:border-teal-400" />
                     </div>
                     <div>
                         <label className="text-sm font-semibold text-gray-600 mb-1 block">File Excel</label>
-                        <input type="file" accept=".xlsx, .xls, .csv" onChange={(e) => setFile(e.target.files[0])} className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-teal-400" />
+                        <input type="file" accept=".xlsx, .xls, .csv" onChange={(e) => setFile(e.target.files[0])} className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm text-gray-900 focus:outline-none focus:border-teal-400" />
                     </div>
                 </div>
                 <div className="px-6 pb-6 flex gap-3">
