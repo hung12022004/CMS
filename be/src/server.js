@@ -22,7 +22,6 @@ const app = express();
 app.use(morgan("dev"));
 
 // ✅ Cập nhật CORS để cho phép Vercel truy cập
-// ✅ Cập nhật CORS thông minh: Cho phép Local, Link chính và mọi Link preview của Vercel
 app.use(
   cors({
     origin: ["http://localhost:5173"], // Link Vite ở máy bạn

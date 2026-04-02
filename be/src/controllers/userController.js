@@ -1,5 +1,6 @@
 const bcrypt = require("bcryptjs");
 const User = require("../models/User");
+const Appointment = require("../models/Appointment");
 
 // GET /api/v1/users/me
 exports.getMe = async (req, res) => {
