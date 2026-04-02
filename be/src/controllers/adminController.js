@@ -153,6 +153,7 @@ exports.createStaffAccount = async (req, res) => {
 exports.toggleBanUser = async (req, res) => {
     try {
         const { id } = req.params;
+        const { reason } = req.body || {};
 
         // Không cho ban chính mình
         if (id === req.user.id) {
@@ -165,11 +166,20 @@ exports.toggleBanUser = async (req, res) => {
         }
 
         user.isBanned = !user.isBanned;
+
+        if (user.isBanned) {
+            user.banReason = reason || "Vi phạm các điều khoản của hệ thống";
+            user.bannedAt = new Date();
+        } else {
+            user.banReason = null;
+            user.bannedAt = null;
+        }
+
         await user.save();
 
         return res.status(200).json({
             message: user.isBanned
-                ? `Đã khóa tài khoản ${user.name || user.email}`
+                ? `Đã khóa tài khoản ${user.name || user.email}. Lý do: ${user.banReason}`
                 : `Đã mở khóa tài khoản ${user.name || user.email}`,
             user,
         });

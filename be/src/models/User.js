@@ -63,6 +63,15 @@ const userSchema = new mongoose.Schema(
       default: false,
     },
 
+    banReason: {
+      type: String,
+      default: null,
+    },
+    bannedAt: {
+      type: Date,
+      default: null,
+    },
+
     avatarUrl: {
       type: String,
       default: "",

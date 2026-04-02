@@ -69,12 +69,21 @@ export default function AdminUsersPage() {
     };
 
     const handleToggleBan = async (userId) => {
+        const targetUser = users.find((u) => u._id === userId);
+        let reason = "";
+        
+        // Nếu user chưa bị khóa thì popup hỏi lý do (nếu admin bấm Cancel sẽ thoát)
+        if (targetUser && !targetUser.isBanned) {
+            reason = window.prompt("Nhập lý do khóa tài khoản (để trống sẽ dùng lý do mặc định):");
+            if (reason === null) return; 
+        }
+
         setBanning(userId);
         try {
-            const data = await toggleBanUserApi(userId);
+            const data = await toggleBanUserApi(userId, { reason });
             setUsers((prev) =>
                 prev.map((u) =>
-                    u._id === userId ? { ...u, isBanned: data.user.isBanned } : u
+                    u._id === userId ? { ...u, isBanned: data.user.isBanned, banReason: data.user.banReason, bannedAt: data.user.bannedAt } : u
                 )
             );
         } catch (err) {
@@ -208,6 +217,12 @@ export default function AdminUsersPage() {
                                                                 BỊ KHÓA
                                                             </span>
                                                         )}
+                                                    {u.isBanned && u.banReason && (
+                                                        <p className="text-xs text-red-400 mt-1 font-normal">Lý do: {u.banReason}</p>
+                                                    )}
+                                                    {u.isBanned && u.bannedAt && (
+                                                        <p className="text-[10px] text-slate-500 font-normal">Từ: {new Date(u.bannedAt).toLocaleString("vi-VN")}</p>
+                                                    )}
                                                     </div>
                                                 </div>
                                             </td>

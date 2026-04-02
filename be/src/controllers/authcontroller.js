@@ -170,8 +170,10 @@ exports.login = async (req, res) => {
     }
 
     if (user.isBanned) {
+      const reason = user.banReason ? ` Lý do: ${user.banReason}.` : "";
+      const time = user.bannedAt ? ` Thời gian khóa: ${new Date(user.bannedAt).toLocaleString("vi-VN")}.` : "";
       return res.status(403).json({
-        message: "Tài khoản của bạn đã bị khóa. Vui lòng liên hệ admin.",
+        message: `Tài khoản của bạn đã bị khóa.${reason}${time} Vui lòng liên hệ admin để biết thêm chi tiết.`,
       });
     }
 
@@ -436,7 +438,7 @@ exports.googleLogin = async (req, res) => {
       expiresIn: 30 * 60,
     });
   } catch (err) {
-    console.error("google login error:", err);
-    return res.status(500).json({ message: "Google login failed" });
+    console.error("googleLogin error:", err);
+    return res.status(500).json({ message: "Lỗi máy chủ khi đăng nhập bằng Google" });
   }
 };

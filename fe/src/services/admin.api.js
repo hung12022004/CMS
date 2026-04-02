@@ -26,10 +26,15 @@ export const createStaffAccountApi = async (data) => {
     return res.data;
 };
 
-/**
- * Ban / Unban user (Admin only)
- */
-export const toggleBanUserApi = async (userId) => {
-    const res = await api.patch(`/admin/users/${userId}/ban`);
+// /**
+//  * Ban / Unban user (Admin only)
+//  */
+// export const toggleBanUserApi = async (userId) => {
+//     const res = await api.patch(`/admin/users/${userId}/ban`);
+//     return res.data;
+// };
+
+export const toggleBanUserApi = async (userId, data) => {
+    const res = await api.patch(`/admin/users/${userId}/ban`, data);
     return res.data;
 };
