@@ -79,4 +79,12 @@ export const getDoctorReviewsApi = async (id) => {
   return res.data;
 };
 
-
+/**
+ * POST /api/v1/users/:id/ban
+ * Khóa / mở khóa tài khoản
+ * body: { action, reason }
+ */
+export const toggleBanUserApi = async (id, payload) => {
+  const res = await api.post(`/users/${id}/ban`, payload);
+  return res.data;
+};

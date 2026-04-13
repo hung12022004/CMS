@@ -10,6 +10,8 @@ function getRedirectByRole(role) {
     case "admin": return "/dashboard";
     case "doctor": return "/dashboard";
     case "nurse": return "/dashboard";
+    case "PARACLINICAL_DOCTOR": return "/encounters/board";
+    case "CLINICAL_DOCTOR": return "/medical-records";
     default: return "/";
   }
 }

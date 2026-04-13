@@ -4,7 +4,7 @@
 :root {
   font-family: "Poppins", system-ui, -apple-system, Segoe UI, Roboto, Arial,
     sans-serif;
-  color: #111111;
+  color: #000000;
 }
 
 .input {
@@ -53,5 +53,97 @@
 
   50% {
     opacity: 0.7;
+  }
+}
+
+/* =============================== */
+/*        PRINT STYLES             */
+/* =============================== */
+@media print {
+  /* Hide everything except the medical record content */
+  nav,
+  header,
+  aside,
+  footer,
+  .print-hide,
+  [id="print-hide-header"] {
+    display: none !important;
+  }
+
+  /* Layout adjustments for print */
+  body {
+    background: white !important;
+    color: #000000 !important;
+    font-family: "Times New Roman", Times, serif !important;
+    font-size: 12pt;
+  }
+
+  /* The main wrapper — maximize width */
+  .flex.h-screen,
+  .flex.min-h-screen {
+    display: block !important;
+  }
+
+  /* Make print content full width */
+  .flex-1.overflow-y-auto,
+  .overflow-y-auto {
+    overflow: visible !important;
+    height: auto !important;
+  }
+
+  /* Force record detail area to full page */
+  #record-detail-area {
+    width: 100% !important;
+    max-width: 100% !important;
+    padding: 0 !important;
+    border: none !important;
+    box-shadow: none !important;
+  }
+
+  /* Card sections look clean */
+  .bg-white.border.border-gray-200.rounded-xl {
+    border: 1px solid #ccc !important;
+    border-radius: 4px !important;
+    box-shadow: none !important;
+    break-inside: avoid;
+    page-break-inside: avoid;
+    margin-bottom: 12pt !important;
+    padding: 10pt !important;
+  }
+
+  /* Section headings */
+  h3, h2 {
+    color: #000000 !important;
+  }
+
+  /* All text black */
+  * {
+    color: #000000 !important;
+  }
+
+  /* Table borders */
+  table {
+    border-collapse: collapse !important;
+    width: 100%;
+  }
+
+  th, td {
+    border: 1px solid #999 !important;
+    padding: 4pt 8pt !important;
+    color: #000000 !important;
+  }
+
+  thead {
+    background-color: #f0f0f0 !important;
+  }
+
+  /* Page break before major sections if needed */
+  .page-break-before {
+    page-break-before: always;
+  }
+
+  @page {
+    margin: 2cm;
+    size: A4 portrait;
   }
 }

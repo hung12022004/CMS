@@ -12,6 +12,11 @@ const medicalRecordSchema = new mongoose.Schema(
             ref: "User",
             required: true,
         },
+        encounterId: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "MedicalEncounter",
+            default: null,
+        },
         diagnosis: {
             type: String,
             required: true,

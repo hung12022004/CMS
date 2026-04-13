@@ -29,7 +29,15 @@ export const createStaffAccountApi = async (data) => {
 /**
  * Ban / Unban user (Admin only)
  */
-export const toggleBanUserApi = async (userId) => {
-    const res = await api.patch(`/admin/users/${userId}/ban`);
+export const toggleBanUserApi = async (userId, data) => {
+    const res = await api.patch(`/admin/users/${userId}/ban`, data);
+    return res.data;
+};
+
+/**
+ * Lấy lịch sử Ban / Unban của user (Admin only)
+ */
+export const getUserBanHistoryApi = async (userId) => {
+    const res = await api.get(`/admin/users/${userId}/ban-history`);
     return res.data;
 };

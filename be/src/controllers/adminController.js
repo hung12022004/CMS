@@ -1,4 +1,5 @@
 const User = require("../models/User");
+const AccountActionLog = require("../models/AccountActionLog");
 
 /**
  * GET /api/v1/admin/users
@@ -94,7 +95,7 @@ exports.updateUserRole = async (req, res) => {
  */
 exports.createStaffAccount = async (req, res) => {
     try {
-        const { name, email, password, role, gender, specialty } = req.body;
+        const { name, email, password, role, gender, specialty, specialization } = req.body;
 
         // Validate role
         const allowedRoles = ["doctor", "nurse"];
@@ -134,6 +135,11 @@ exports.createStaffAccount = async (req, res) => {
             newUserObj.specialty = specialty;
         }
 
+        // Chuyên môn cận lâm sàng (VITALS, BLOOD_TEST, DENTAL, X_RAY, ULTRASOUND)
+        if (specialization) {
+            newUserObj.specialization = specialization;
+        }
+
         const user = await User.create(newUserObj);
 
         return res.status(201).json({
@@ -149,32 +155,99 @@ exports.createStaffAccount = async (req, res) => {
 /**
  * PATCH /api/v1/admin/users/:id/ban
  * Admin ban/unban user
+ * body: { reason? }
  */
 exports.toggleBanUser = async (req, res) => {
     try {
         const { id } = req.params;
+        const { reason, action } = req.body;
+        const adminId = req.user?.id;
+
+        if (!reason || reason.trim() === "") {
+            return res.status(400).json({ 
+                success: false, 
+                message: 'Thao tác thất bại: Bắt buộc phải nhập lý do khóa tài khoản.' 
+            });
+        }
 
         // Không cho ban chính mình
-        if (id === req.user.id) {
+        if (id === adminId) {
             return res.status(400).json({ message: "Không thể ban chính mình" });
         }
 
-        const user = await User.findById(id);
+        const user = await User.findById(id).select("role accountStatus name email");
         if (!user) {
             return res.status(404).json({ message: "User not found" });
         }
 
-        user.isBanned = !user.isBanned;
-        await user.save();
+        if (user.role === "admin" || user.role === "ADMIN") {
+            return res.status(403).json({ message: "Không thể khóa tài khoản Admin" });
+        }
+
+        const isBanned = user.accountStatus === "BANNED";
+        
+        let newStatus = "";
+        let actionType = "";
+
+        if (action === "BAN") {
+            if (isBanned) return res.status(400).json({ message: "Tài khoản đã bị khóa từ trước" });
+            newStatus = "BANNED";
+            actionType = "BAN";
+        } else if (action === "UNBAN") {
+            if (!isBanned) return res.status(400).json({ message: "Tài khoản đang hoạt động, không thể unban" });
+            newStatus = "ACTIVE";
+            actionType = "UNBAN";
+        } else {
+            newStatus = isBanned ? "ACTIVE" : "BANNED";
+            actionType = isBanned ? "UNBAN" : "BAN";
+        }
+
+        const updated = await User.findByIdAndUpdate(
+            id,
+            { $set: { accountStatus: newStatus, banReason: newStatus === "BANNED" ? reason : "" } },
+            { new: true, select: "-passwordHash" }
+        );
+
+        try {
+            const log = new AccountActionLog({
+                userId: id,
+                actionBy: adminId,
+                actionType: actionType,
+                reason: reason,
+            });
+            await log.save();
+        } catch (logErr) {
+            console.error("Cảnh báo: Lưu audit log thất bại:", logErr.message);
+        }
 
         return res.status(200).json({
-            message: user.isBanned
+            message: newStatus === "BANNED"
                 ? `Đã khóa tài khoản ${user.name || user.email}`
                 : `Đã mở khóa tài khoản ${user.name || user.email}`,
-            user,
+            user: updated,
+            accountStatus: newStatus,
         });
     } catch (err) {
         console.error("toggleBanUser error:", err);
-        return res.status(500).json({ message: "Server error" });
+        return res.status(500).json({ message: "Server error", detail: err.message });
     }
 };
+
+/**
+ * GET /api/v1/admin/users/:id/ban-history
+ * Lấy lịch sử ban/unban của user
+ */
+exports.getUserBanHistory = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const logs = await AccountActionLog.find({ userId: id })
+            .populate("actionBy", "name email")
+            .sort({ createdAt: -1 });
+            
+        return res.status(200).json({ logs });
+    } catch (err) {
+        console.error("getUserBanHistory error:", err);
+        return res.status(500).json({ message: "Server error", detail: err.message });
+    }
+};
+

@@ -1,5 +1,8 @@
 const bcrypt = require("bcryptjs");
 const User = require("../models/User");
+const Appointment = require("../models/Appointment");
+const mongoose = require("mongoose");
+const AccountActionLog = require("../models/AccountActionLog");
 
 // GET /api/v1/users/me
 exports.getMe = async (req, res) => {
@@ -225,5 +228,85 @@ exports.getDoctorReviews = async (req, res) => {
   } catch (err) {
     console.error("getDoctorReviews error:", err);
     return res.status(500).json({ message: "Server error" });
+  }
+};
+
+/**
+ * POST /api/v1/users/:id/ban
+ * Khóa (Ban) hoặc mở khóa (Unban) tài khoản người dùng, có lưu vết Audit.
+ * Chỉ admin mới có quyền thực thi.
+ * Áp dụng Mongoose Transaction: Nếu update user lỗi hoặc tạo log lỗi, sẽ hoàn tác bảo vệ dữ liệu.
+ */
+exports.toggleBanUser = async (req, res) => {
+  const { id } = req.params;
+  const { reason, action } = req.body;
+  const adminId = req.user?.id;
+
+  if (!reason || reason.trim() === "") {
+    return res.status(400).json({ 
+      success: false, 
+      message: 'Thao tác thất bại: Bắt buộc phải nhập lý do khóa tài khoản.' 
+    });
+  }
+
+  try {
+    // 1. Tìm user cần thực hiện
+    const targetUser = await User.findById(id);
+    if (!targetUser) {
+      return res.status(404).json({ message: "Không tìm thấy người dùng" });
+    }
+
+    if (targetUser.role === "admin" || targetUser.role === "ADMIN") {
+      return res.status(403).json({ message: "Không thể khóa tài khoản Admin" });
+    }
+
+    const currentStatus = targetUser.accountStatus || "ACTIVE";
+    let newStatus = "";
+    let actionType = "";
+
+    if (action === "BAN") {
+      if (currentStatus === "BANNED") {
+        return res.status(400).json({ message: "Tài khoản đã bị khóa từ trước" });
+      }
+      newStatus = "BANNED";
+      actionType = "BAN";
+    } else if (action === "UNBAN") {
+      if (currentStatus === "ACTIVE") {
+        return res.status(400).json({ message: "Tài khoản đang hoạt động, không thể unban" });
+      }
+      newStatus = "ACTIVE";
+      actionType = "UNBAN";
+    } else {
+      // Toggle nếu không truyền action
+      newStatus = currentStatus === "ACTIVE" ? "BANNED" : "ACTIVE";
+      actionType = currentStatus === "ACTIVE" ? "BAN" : "UNBAN";
+    }
+
+    // 2. Cập nhật user
+    targetUser.accountStatus = newStatus;
+    targetUser.banReason = newStatus === "BANNED" ? reason : "";
+    await targetUser.save();
+
+    // 3. Tạo Audit Log (nếu fail → không rollback user, nhưng log sẽ được thử lại)
+    try {
+      const log = new AccountActionLog({
+        userId: targetUser._id,
+        actionBy: adminId,
+        actionType: actionType,
+        reason: reason,
+      });
+      await log.save();
+    } catch (logErr) {
+      console.error("Cảnh báo: Lưu audit log thất bại:", logErr.message);
+      // Không throw — user đã được ban thành công, chỉ log bị mất
+    }
+
+    return res.status(200).json({
+      message: actionType === "BAN" ? "Khóa tài khoản thành công" : "Mở khóa tài khoản thành công",
+      accountStatus: targetUser.accountStatus,
+    });
+  } catch (err) {
+    console.error("toggleBanUser error:", err);
+    return res.status(500).json({ message: err.message || "Lỗi Server" });
   }
 };

@@ -169,7 +169,7 @@ exports.login = async (req, res) => {
       });
     }
 
-    if (user.isBanned) {
+    if (user.accountStatus === "BANNED") {
       return res.status(403).json({
         message: "Tài khoản của bạn đã bị khóa. Vui lòng liên hệ admin.",
       });

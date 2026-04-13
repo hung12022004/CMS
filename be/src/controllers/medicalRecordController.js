@@ -19,6 +19,7 @@ exports.getMedicalRecords = async (req, res) => {
         const records = await MedicalRecord.find(filter)
             .populate("patientId", "name email phoneNumber gender avatarUrl")
             .populate("doctorId", "name email phoneNumber avatarUrl")
+            .populate("encounterId")
             .sort({ date: -1, createdAt: -1 });
 
         return res.status(200).json({ records });
@@ -31,7 +32,7 @@ exports.getMedicalRecords = async (req, res) => {
 // POST /api/v1/medical-records
 exports.createMedicalRecord = async (req, res) => {
     try {
-        const { patientId, diagnosis, symptoms, notes, date, vitals, status, prescriptions } = req.body;
+        const { patientId, encounterId, diagnosis, symptoms, notes, date, vitals, status, prescriptions } = req.body;
         const doctorId = req.user.id;
  
         if (!patientId || !diagnosis || !date) {
@@ -41,6 +42,7 @@ exports.createMedicalRecord = async (req, res) => {
         const newRecord = await MedicalRecord.create({
             patientId,
             doctorId,
+            encounterId: encounterId || null,
             diagnosis,
             symptoms: symptoms || [],
             notes: notes || "",
@@ -49,6 +51,15 @@ exports.createMedicalRecord = async (req, res) => {
             status: status || "Hoàn thành",
             prescriptions: prescriptions || [],
         });
+
+        // Tự động khoá/hoàn tất phiên khám (Encounter)
+        if (encounterId) {
+            const MedicalEncounter = require("../models/MedicalEncounter");
+            await MedicalEncounter.findByIdAndUpdate(encounterId, {
+                status: "COMPLETED",
+                isLocked: true
+            });
+        }
 
         // Send email notification to patient
         try {

@@ -25,7 +25,7 @@ const banners = [
     },
 ];
 
-// Quick menu items — base set
+// Quick menu items – base set
 const quickMenuItems = [
     {
         id: 5,
@@ -106,6 +106,32 @@ const quickMenuItems = [
         roles: ["patient", "doctor"],
     },
     {
+        id: 11,
+        icon: (
+            <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 5h18M3 12h18M3 19h18" />
+            </svg>
+        ),
+        label: "Tiến trình khám",
+        path: "/encounters/flow",
+        color: "bg-blue-500",
+        lightColor: "bg-blue-50",
+        roles: ["patient"],
+    },
+    {
+        id: 10,
+        icon: (
+            <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 19h16M6 16V8m6 8V4m6 12V6" />
+            </svg>
+        ),
+        label: "Báo cáo",
+        path: "/reports",
+        color: "bg-indigo-500",
+        lightColor: "bg-indigo-50",
+        roles: ["doctor", "admin"],
+    },
+    {
         id: 4,
         icon: (
             <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -120,7 +146,7 @@ const quickMenuItems = [
     },
     // Doctor-only: Check-in shortcut (for nurses too)
     {
-        id: 5,
+        id: 9,
         icon: (
             <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
@@ -337,7 +363,7 @@ export default function DashboardPage() {
                                             <p className={`text-[10px] font-bold uppercase ${i >= 5 ? "text-red-400" : isToday ? "text-blue-600" : "text-gray-500"}`}>{dayLabels[i]}</p>
                                             <p className={`text-xs font-semibold mt-0.5 ${isToday ? "text-blue-700" : "text-gray-600"}`}>{date.slice(8)}</p>
                                             {!slot ? (
-                                                <span className="text-lg mt-1 block">—</span>
+                                                <span className="text-lg mt-1 block">–</span>
                                             ) : slot.isWorking ? (
                                                 <>
                                                     <span className="text-lg mt-1 block">✅</span>

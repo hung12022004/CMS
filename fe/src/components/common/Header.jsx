@@ -3,6 +3,8 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../../hooks/useAuth";
 
 const ROLE_LABELS = {
+  CLINICAL_DOCTOR: { label: "Clinical Doctor", color: "bg-blue-500/20 text-blue-400 border-blue-500/30" },
+  PARACLINICAL_DOCTOR: { label: "Paraclinical Doctor", color: "bg-indigo-500/20 text-indigo-400 border-indigo-500/30" },
   admin: { label: "Admin", color: "bg-red-500/20 text-red-400 border-red-500/30" },
   doctor: { label: "Bác sĩ", color: "bg-blue-500/20 text-blue-400 border-blue-500/30" },
   nurse: { label: "Y tá", color: "bg-green-500/20 text-green-400 border-green-500/30" },
@@ -16,11 +18,22 @@ const NAV_BY_ROLE = {
     { label: "Bác sĩ", path: "/doctors" },
     { label: "Lịch hẹn", path: "/appointments" },
     { label: "Hồ sơ bệnh án", path: "/medical-records" },
+    { label: "Tiến trình khám", path: "/encounters/flow" },
   ],
   doctor: [
     { label: "Dashboard", path: "/dashboard" },
+    { label: "Báo cáo", path: "/reports" },
     { label: "🩺 Bệnh nhân hôm nay", path: "/doctor/queue" },
     { label: "Danh sách bệnh nhân", path: "/medical-records" },
+  ],
+  CLINICAL_DOCTOR: [
+    { label: "Dashboard", path: "/dashboard" },
+    { label: "Báo cáo", path: "/reports" },
+    { label: "Bệnh nhân hôm nay", path: "/doctor/queue" },
+    { label: "Danh sách bệnh nhân", path: "/medical-records" },
+  ],
+  PARACLINICAL_DOCTOR: [
+    { label: "Hàng đợi dịch vụ", path: "/encounters/board" },
   ],
   nurse: [
     { label: "Dashboard", path: "/dashboard" },
@@ -29,6 +42,7 @@ const NAV_BY_ROLE = {
     { label: "Lịch hẹn", path: "/appointments" },
   ],
   admin: [
+    { label: "Báo cáo", path: "/reports" },
     { label: "Quản lý user", path: "/admin/users" },
   ],
 };

@@ -42,8 +42,21 @@ const userSchema = new mongoose.Schema(
 
     role: {
       type: String,
-      enum: ["admin", "doctor", "nurse", "patient"],
+      enum: ["admin", "doctor", "nurse", "patient", "CLINICAL_DOCTOR", "PARACLINICAL_DOCTOR", "ADMIN"],
       default: "patient",
+    },
+
+    department: {
+      type: String,
+      enum: ["INTERNAL_MEDICINE", "X_RAY", "LABORATORY", "NONE"],
+      default: "NONE",
+    },
+
+    // Chuyên môn cận lâm sàng (dùng để lọc hàng đợi dịch vụ)
+    specialization: {
+      type: String,
+      enum: ["VITALS", "BLOOD_TEST", "DENTAL", "X_RAY", "ULTRASOUND", "NONE"],
+      default: "NONE",
     },
 
     gender: {
@@ -58,9 +71,15 @@ const userSchema = new mongoose.Schema(
       default: "vi",
     },
 
-    isBanned: {
-      type: Boolean,
-      default: false,
+    accountStatus: {
+      type: String,
+      enum: ["ACTIVE", "BANNED"],
+      default: "ACTIVE",
+    },
+
+    banReason: {
+      type: String,
+      default: "",
     },
 
     avatarUrl: {

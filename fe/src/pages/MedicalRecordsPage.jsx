@@ -5,6 +5,8 @@ import { getMedicalRecordsApi, createMedicalRecordApi, updateMedicalRecordApi } 
 import { getPatientsApi } from "../services/user.api";
 import { updateAppointmentStatusApi } from "../services/appointment.api";
 import { updateQueueStatusApi } from "../services/checkin.api";
+import { startEncounterApi, createEncounterServiceApi, getActiveEncounterApi } from "../services/encounter.api";
+import { socket, connectSocket, disconnectSocket, joinDoctorRoom } from "../services/socketClient";
 
 // Mock medical records - Doctor view
 const mockDoctorRecords = [
@@ -137,6 +139,22 @@ export default function MedicalRecordsPage() {
     const [formSymptoms, setFormSymptoms] = useState([]);
     const [formNotes, setFormNotes] = useState("");
 
+    // Encounter services (multi-step)
+    const [encounterId, setEncounterId] = useState(null);
+    const [encounterServices, setEncounterServices] = useState([]);
+    const [serviceTypeInput, setServiceTypeInput] = useState("VITALS");
+    const [assignedRoomInput, setAssignedRoomInput] = useState("");
+    const [encounterLoading, setEncounterLoading] = useState(false);
+    const [encounterError, setEncounterError] = useState("");
+
+    const SERVICE_OPTIONS = [
+        { value: "VITALS", label: "Sinh hiệu" },
+        { value: "BLOOD_TEST", label: "Lấy máu" },
+        { value: "DENTAL", label: "RHM" },
+        { value: "X_RAY", label: "X-Quang" },
+        { value: "ULTRASOUND", label: "Siêu âm" },
+    ];
+
     const MEDICINE_LIST = [
         { id: "MED-001", name: "Panadol Extra", unit: "Viên" },
         { id: "MED-002", name: "Decolgen", unit: "Viên" },
@@ -245,6 +263,62 @@ export default function MedicalRecordsPage() {
         }
     }, [selectedPatientId]);
 
+    useEffect(() => {
+        const fetchActiveEncounter = async () => {
+            if (!showForm) {
+                setEncounterId(null);
+                setEncounterServices([]);
+                setEncounterError("");
+                return;
+            }
+
+            const targetPatientId = formPatientId || selectedPatientId;
+            if (!targetPatientId) {
+                setEncounterId(null);
+                setEncounterServices([]);
+                setEncounterError("");
+                return;
+            }
+            try {
+                setEncounterServices([]); // Đảm bảo clear state trước khi check
+                const res = await getActiveEncounterApi(targetPatientId);
+                if (res.encounter) {
+                    setEncounterId(res.encounter._id);
+                    setEncounterServices(res.encounter.services || []);
+                } else {
+                    setEncounterId(null);
+                    setEncounterServices([]);
+                }
+            } catch (err) {
+                console.error("Lỗi lấy active encounter:", err);
+                setEncounterId(null);
+                setEncounterServices([]);
+            }
+            setEncounterError("");
+        };
+        fetchActiveEncounter();
+    }, [formPatientId, selectedPatientId, showForm]);
+
+    // Socket.io: Bác sĩ chính nhận cập nhật realtime từ khoa cận lâm sàng
+    useEffect(() => {
+        if (!user?._id || !isDoctor) return;
+
+        connectSocket();
+        socket.on("connect", () => joinDoctorRoom(user._id));
+
+        socket.on("patient_progress_updated", (updatedService) => {
+            setEncounterServices((prev) =>
+                prev.map((s) => (s._id === updatedService._id ? updatedService : s))
+            );
+        });
+
+        return () => {
+            socket.off("connect");
+            socket.off("patient_progress_updated");
+            disconnectSocket();
+        };
+    }, [user?._id, isDoctor]);
+
     // Hàm trợ giúp parse thông tin từ form nâng cao
     const getParsedNotes = (notes) => {
         if (!notes) return null;
@@ -302,6 +376,51 @@ export default function MedicalRecordsPage() {
 
     const removeSymptom = (idx) => {
         setFormSymptoms(formSymptoms.filter((_, i) => i !== idx));
+    };
+
+    const handleAddEncounterService = async () => {
+        const targetPatientId = formPatientId || selectedPatientId;
+        if (!targetPatientId) {
+            setEncounterError("Vui lòng chọn bệnh nhân trước khi chỉ định dịch vụ.");
+            return;
+        }
+
+        try {
+            setEncounterLoading(true);
+            setEncounterError("");
+
+            let activeEncounterId = encounterId;
+            if (!activeEncounterId) {
+                const startRes = await startEncounterApi({ patientId: targetPatientId });
+                activeEncounterId = startRes.encounter?._id;
+                setEncounterId(activeEncounterId || null);
+                setEncounterServices(startRes.encounter?.services || []);
+            }
+
+            if (!activeEncounterId) {
+                setEncounterError("Không thể khởi tạo đợt khám.");
+                return;
+            }
+
+            const created = await createEncounterServiceApi({
+                encounterId: activeEncounterId,
+                serviceType: serviceTypeInput,
+                assignedRoom: assignedRoomInput || undefined,
+            });
+
+            if (created?.service) {
+                const hydratedService = { ...created.service };
+                if (assignedRoomInput) {
+                    hydratedService.assignedRoom = { name: assignedRoomInput };
+                }
+                setEncounterServices((prev) => [...prev, hydratedService]);
+                setAssignedRoomInput("");
+            }
+        } catch (err) {
+            setEncounterError(err?.response?.data?.message || "Không thể thêm dịch vụ.");
+        } finally {
+            setEncounterLoading(false);
+        }
     };
 
     const handleSymptomKeyDown = (e) => {
@@ -403,6 +522,7 @@ export default function MedicalRecordsPage() {
         try {
             const payload = {
                 patientId: targetPatientId,
+                encounterId: encounterId || null,
                 diagnosis: formDiagnosis.trim(),
                 symptoms: finalSymptoms,
                 notes: advancedNotes,
@@ -593,7 +713,7 @@ export default function MedicalRecordsPage() {
     return (
         <div className="h-screen bg-[#F0F4F8] pt-16 flex overflow-hidden">
             {/* Sidebar: Patient List */}
-            <div className="w-[320px] bg-white border-r flex flex-col shadow-sm">
+            <div className="w-[320px] bg-white border-r flex flex-col shadow-sm print:hidden">
                 <div className="p-5 border-b">
                     <div className="flex items-center justify-between mb-4">
                         <h2 className="text-xl font-bold text-[#1E293B]">Danh sách bệnh nhân</h2>
@@ -654,6 +774,19 @@ export default function MedicalRecordsPage() {
                                                 setFormPatientId(patient._id);
                                                 setFormAppointmentId(null);
                                                 setSelectedRecordId(null);
+                                                setEditRecordId(null);
+                                                setFormDiagnosis("");
+                                                setFormSymptoms([]);
+                                                setFormSymptomInput("");
+                                                setFormNotes("");
+                                                setFormVitals({ weight: "", bloodPressure: "", heartRate: "", temperature: "", spo2: "" });
+                                                setFormPrescriptions([]);
+                                                setFormAdminInfo({ occupation: "", idCard: "", address: "", relativePhone: "" });
+                                                setFormMedicalMgmt({ recordNumber: "", objectType: "Dịch vụ" });
+                                                setFormAnamnesis({ reason: "" });
+                                                setFormExamination({ general: "", parts: "" });
+                                                setFormParaclinical({ tests: "", imaging: "", endoscopy: "" });
+                                                setFormTreatment({ advice: "", followUp: "" });
                                                 setTimeout(() => setShowForm(true), 50);
                                             }}
                                             className="p-1.5 bg-white hover:bg-blue-50 text-blue-600 rounded-lg border border-gray-100 hover:border-blue-200 transition-all shadow-sm group/btn"
@@ -672,7 +805,7 @@ export default function MedicalRecordsPage() {
             </div>
 
             {/* Middle: History Timeline */}
-            <div className="flex-1 bg-white border-r flex flex-col shadow-sm">
+            <div className="flex-1 bg-white border-r flex flex-col shadow-sm print:hidden">
                 <div className="p-5 border-b flex items-center justify-between bg-white sticky top-0 z-10">
                     <h2 className="text-xl font-bold text-[#1E293B]">Lịch sử khám</h2>
                     <button
@@ -769,7 +902,7 @@ export default function MedicalRecordsPage() {
             </div>
 
             {/* Right: Record Detail OR Form */}
-            <div className={`w-[600px] bg-white border-l transition-all duration-300 flex flex-col shadow-xl ${(showForm || selectedRecordId) ? "mr-0" : "-mr-[600px]"}`}>
+            <div id="record-detail-area" className={`w-[600px] print:w-full bg-white border-l transition-all duration-300 flex flex-col shadow-xl ${(showForm || selectedRecordId) ? "mr-0" : "-mr-[600px]"}`}>
                 {showForm ? (
                     <>
                         {/* Professional form header */}
@@ -792,6 +925,90 @@ export default function MedicalRecordsPage() {
                         </div>
 
                         <div className="flex-1 overflow-y-auto p-5 bg-[#F8FAFC]">
+                            {/* Service Orders */}
+                            <div className="bg-white border border-gray-200 rounded-xl p-5 mb-5 shadow-sm">
+                                <div className="flex items-center justify-between mb-4">
+                                    <h3 className="text-sm font-bold text-blue-800 uppercase tracking-wide">Chỉ định dịch vụ</h3>
+                                    {encounterId && (
+                                        <span className="text-xs text-gray-400">Mã đợt: {String(encounterId).slice(0, 8)}...</span>
+                                    )}
+                                </div>
+                                <div className="flex flex-col lg:flex-row gap-3">
+                                    <select
+                                        value={serviceTypeInput}
+                                        onChange={(e) => setServiceTypeInput(e.target.value)}
+                                        className="flex-1 px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 focus:ring-1 focus:ring-blue-500 outline-none"
+                                    >
+                                        {SERVICE_OPTIONS.map((opt) => (
+                                            <option key={opt.value} value={opt.value}>{opt.label}</option>
+                                        ))}
+                                    </select>
+                                    <input
+                                        type="text"
+                                        value={assignedRoomInput}
+                                        onChange={(e) => setAssignedRoomInput(e.target.value)}
+                                        placeholder="Số phòng / Khu"
+                                        className="w-full lg:w-40 px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm text-gray-900 focus:ring-1 focus:ring-blue-500 outline-none"
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={handleAddEncounterService}
+                                        disabled={encounterLoading}
+                                        className={`px-4 py-2 rounded-lg text-sm font-semibold ${encounterLoading ? "bg-gray-300 text-white" : "bg-blue-600 text-white hover:bg-blue-700"}`}
+                                    >
+                                        {encounterLoading ? "Đang thêm..." : "Thêm dịch vụ"}
+                                    </button>
+                                </div>
+                                {encounterError && (
+                                    <p className="text-xs text-red-600 mt-2">{encounterError}</p>
+                                )}
+                                <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-3">
+                                    {encounterServices.length === 0 ? (
+                                        <div className="text-xs text-gray-500 italic">Chưa có dịch vụ nào.</div>
+                                    ) : (
+                                        encounterServices.map((svc) => (
+                                            <div key={svc._id} className="border border-gray-100 rounded-lg p-3 bg-slate-50 flex flex-col h-full">
+                                                <div className="flex-1">
+                                                    <div className="flex justify-between items-start">
+                                                        <p className="text-sm font-semibold text-gray-800">
+                                                            {SERVICE_OPTIONS.find(o => o.value === svc.serviceType)?.label || svc.serviceType}
+                                                        </p>
+                                                        <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${
+                                                            svc.status === 'COMPLETED' ? 'bg-emerald-100 text-emerald-700' :
+                                                            svc.status === 'IN_PROGRESS' ? 'bg-amber-100 text-amber-700' :
+                                                            'bg-gray-200 text-gray-600'
+                                                        }`}>
+                                                            {svc.status === 'COMPLETED' ? 'Hoàn thành' : svc.status === 'IN_PROGRESS' ? 'Đang thực hiện' : 'Chờ khám'}
+                                                        </span>
+                                                    </div>
+                                                    {svc.assignedRoom && (
+                                                        <p className="text-xs text-gray-500 mt-1">Phòng: {svc.assignedRoom?.name || svc.assignedRoom}</p>
+                                                    )}
+                                                </div>
+                                                
+                                                {(svc.resultData || svc.resultImageUrl) && (
+                                                    <div className="mt-3 bg-white p-2.5 rounded-lg border border-emerald-100 shadow-sm whitespace-pre-wrap">
+                                                        <p className="text-xs font-bold text-emerald-700 mb-1 flex items-center gap-1">
+                                                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                                                            Kết quả:
+                                                        </p>
+                                                        {svc.resultData && (
+                                                            <p className="text-xs text-gray-700 leading-relaxed font-medium">{svc.resultData}</p>
+                                                        )}
+                                                        {svc.resultImageUrl && (
+                                                            <a href={svc.resultImageUrl} target="_blank" rel="noreferrer" className="text-blue-500 text-xs font-bold hover:underline mt-2 flex items-center gap-1 w-fit">
+                                                                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                                                                Xem ảnh đính kèm
+                                                            </a>
+                                                        )}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        ))
+                                    )}
+                                </div>
+                            </div>
+
                             {/* I. Hành chính */}
                             <div className="bg-white border border-gray-200 rounded-xl p-5 mb-5 shadow-sm">
                                 <h3 className="text-sm font-bold text-blue-800 uppercase tracking-wide mb-4">I. Hành chính</h3>
@@ -914,20 +1131,60 @@ export default function MedicalRecordsPage() {
                             {/* V. Cận lâm sàng */}
                             <div className="bg-white border border-gray-200 rounded-xl p-5 mb-5 shadow-sm">
                                 <h3 className="text-sm font-bold text-blue-800 uppercase tracking-wide mb-4">V. Cận lâm sàng</h3>
-                                <div className="space-y-4">
-                                    <div>
-                                        <label className="text-xs font-semibold text-gray-600 block mb-1">1. Xét nghiệm</label>
-                                        <textarea value={formParaclinical.tests} onChange={e => setFormParaclinical({...formParaclinical, tests: e.target.value})} rows={2} className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 focus:ring-1 focus:ring-blue-500 outline-none resize-none placeholder-gray-400" placeholder="Huyết học, Sinh hoá máy..." />
+                                {encounterServices.length === 0 ? (
+                                    <p className="text-sm text-gray-500 italic text-center py-4 bg-gray-50 rounded-lg border border-dashed border-gray-200">
+                                        Chưa có dịch vụ cận lâm sàng nào được chỉ định.
+                                    </p>
+                                ) : (
+                                    <div className="overflow-hidden rounded-xl border border-gray-200">
+                                        <table className="min-w-full divide-y divide-gray-200">
+                                            <thead className="bg-gray-50">
+                                                <tr>
+                                                    <th className="px-4 py-3 text-left text-xs font-bold text-gray-600 uppercase">Tên dịch vụ</th>
+                                                    <th className="px-4 py-3 text-left text-xs font-bold text-gray-600 uppercase">Trạng thái</th>
+                                                    <th className="px-4 py-3 text-left text-xs font-bold text-gray-600 uppercase">Kết luận / Kết quả</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody className="bg-white divide-y divide-gray-100">
+                                                {encounterServices.map(svc => (
+                                                    <tr key={svc._id}>
+                                                        <td className="px-4 py-3 text-sm text-black font-semibold">
+                                                            {svc.serviceType === 'VITALS' ? 'Sinh hiệu' 
+                                                            : svc.serviceType === 'BLOOD_TEST' ? 'Trắc nghiệm máu'
+                                                            : svc.serviceType === 'DENTAL' ? 'Răng Hàm Mặt'
+                                                            : svc.serviceType === 'X_RAY' ? 'Chụp X-Quang'
+                                                            : svc.serviceType === 'ULTRASOUND' ? 'Siêu âm'
+                                                            : svc.serviceType}
+                                                        </td>
+                                                        <td className="px-4 py-3 text-sm">
+                                                            <span className={`px-2 py-1 rounded-full text-xs font-bold ${
+                                                                svc.status === 'COMPLETED' ? 'bg-emerald-100 text-emerald-800' :
+                                                                svc.status === 'IN_PROGRESS' ? 'bg-blue-100 text-blue-800' :
+                                                                'bg-gray-100 text-gray-800'
+                                                            }`}>
+                                                                {svc.status === 'COMPLETED' ? 'Hoàn thành' : svc.status === 'IN_PROGRESS' ? 'Đang thực hiện' : 'Chờ khám'}
+                                                            </span>
+                                                        </td>
+                                                        <td className="px-4 py-3 text-sm">
+                                                            {svc.status === 'COMPLETED' && (svc.resultData || svc.resultImageUrl) ? (
+                                                                <div className="text-black whitespace-pre-wrap font-medium">
+                                                                    {svc.resultData}
+                                                                    {svc.resultImageUrl && (
+                                                                       <a href={svc.resultImageUrl} target="_blank" rel="noreferrer" className="text-blue-600 block mt-1 underline">
+                                                                           Xem ảnh KQ
+                                                                       </a>
+                                                                    )}
+                                                                </div>
+                                                            ) : (
+                                                                <span className="text-gray-400 italic font-medium">Chưa có...</span>
+                                                            )}
+                                                        </td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
                                     </div>
-                                    <div>
-                                        <label className="text-xs font-semibold text-gray-600 block mb-1">2. Chẩn đoán hình ảnh</label>
-                                        <textarea value={formParaclinical.imaging} onChange={e => setFormParaclinical({...formParaclinical, imaging: e.target.value})} rows={2} className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 focus:ring-1 focus:ring-blue-500 outline-none resize-none placeholder-gray-400" placeholder="Siêu âm, X-quang, MRI..." />
-                                    </div>
-                                    <div>
-                                        <label className="text-xs font-semibold text-gray-600 block mb-1">3. Thăm dò chức năng / Nội soi</label>
-                                        <textarea value={formParaclinical.endoscopy} onChange={e => setFormParaclinical({...formParaclinical, endoscopy: e.target.value})} rows={2} className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 focus:ring-1 focus:ring-blue-500 outline-none resize-none placeholder-gray-400" placeholder="Nội soi TMH, dạ dày, đo hô hấp..." />
-                                    </div>
-                                </div>
+                                )}
                             </div>
 
                             {/* VI. Tổng kết bệnh */}
@@ -1125,7 +1382,7 @@ export default function MedicalRecordsPage() {
                         if (!record) return null;
                         return (
                             <>
-                                <div className="p-5 border-b flex items-center justify-between bg-white sticky top-0 z-10 shadow-sm">
+                                <div id="print-hide-header" className="p-5 border-b flex items-center justify-between bg-white sticky top-0 z-10 shadow-sm print:hidden">
                                     <div>
                                         <h2 className="text-xl font-bold text-[#1E293B]">Chi tiết hồ sơ</h2>
                                         <p className="text-xs text-[#64748B] mt-1">{formatDate(record.date)}</p>
@@ -1139,6 +1396,12 @@ export default function MedicalRecordsPage() {
                                                 ✎ Sửa hồ sơ
                                             </button>
                                         )}
+                                        <button
+                                            onClick={() => window.print()}
+                                            className="text-gray-700 hover:text-gray-900 text-sm font-bold flex items-center gap-1.5 bg-white px-3 py-1.5 rounded-lg border border-gray-200 hover:border-gray-400 transition shadow-sm"
+                                        >
+                                            🖨️ In hồ sơ
+                                        </button>
                                         <button onClick={() => setSelectedRecordId(null)} className="text-[#94A3B8] hover:text-[#475569] text-sm flex items-center gap-1">
                                             ✕ Đóng
                                         </button>
@@ -1221,20 +1484,54 @@ export default function MedicalRecordsPage() {
                                                     {/* V. Cận lâm sàng */}
                                                     <div className="bg-white border border-gray-200 rounded-xl p-5 mb-5 shadow-sm">
                                                         <h3 className="text-sm font-bold text-blue-800 uppercase tracking-wide mb-4">V. Cận lâm sàng</h3>
-                                                        <div className="space-y-4 text-sm">
-                                                            <div>
-                                                                <span className="text-gray-500 block text-xs mb-1">Xét nghiệm (Máu, nước tiểu...)</span> 
-                                                                <p className="font-semibold text-gray-900 whitespace-pre-wrap">{parsedNotes.paraclinical?.tests || "—"}</p>
+                                                        {(!record.encounterId?.services || record.encounterId.services.length === 0) ? (
+                                                            <p className="text-sm text-black italic text-center py-4 bg-gray-50 rounded-lg border border-dashed border-gray-200 font-medium">
+                                                                Chưa có dữ liệu cận lâm sàng tự động.
+                                                            </p>
+                                                        ) : (
+                                                            <div className="overflow-hidden rounded-xl border border-gray-200">
+                                                                <table className="min-w-full divide-y divide-gray-200">
+                                                                    <thead className="bg-gray-50">
+                                                                        <tr>
+                                                                            <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase">Tên dịch vụ</th>
+                                                                            <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase">Trạng thái</th>
+                                                                            <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase">Kết luận / Kết quả</th>
+                                                                        </tr>
+                                                                    </thead>
+                                                                    <tbody className="bg-white divide-y divide-gray-100">
+                                                                        {record.encounterId.services.map(svc => (
+                                                                            <tr key={svc._id}>
+                                                                                <td className="px-4 py-3 text-sm text-black font-semibold">
+                                                                                    {svc.serviceType === 'VITALS' ? 'Sinh hiệu' 
+                                                                                    : svc.serviceType === 'BLOOD_TEST' ? 'Trắc nghiệm máu'
+                                                                                    : svc.serviceType === 'DENTAL' ? 'Răng Hàm Mặt'
+                                                                                    : svc.serviceType === 'X_RAY' ? 'Chụp X-Quang'
+                                                                                    : svc.serviceType === 'ULTRASOUND' ? 'Siêu âm'
+                                                                                    : svc.serviceType}
+                                                                                </td>
+                                                                                <td className="px-4 py-3 text-sm text-black font-medium">
+                                                                                    {svc.status === 'COMPLETED' ? 'Hoàn thành' : svc.status === 'IN_PROGRESS' ? 'Đang thực hiện' : 'Chờ khám'}
+                                                                                </td>
+                                                                                <td className="px-4 py-3 text-sm">
+                                                                                    {svc.status === 'COMPLETED' && (svc.resultData || svc.resultImageUrl) ? (
+                                                                                        <div className="text-black whitespace-pre-wrap font-medium">
+                                                                                            {svc.resultData}
+                                                                                            {svc.resultImageUrl && (
+                                                                                               <a href={svc.resultImageUrl} target="_blank" rel="noreferrer" className="text-blue-600 block mt-1 font-bold underline">
+                                                                                                   Xem ảnh
+                                                                                               </a>
+                                                                                            )}
+                                                                                        </div>
+                                                                                    ) : (
+                                                                                        <span className="text-black font-medium italic">Chưa có kết quả</span>
+                                                                                    )}
+                                                                                </td>
+                                                                            </tr>
+                                                                        ))}
+                                                                    </tbody>
+                                                                </table>
                                                             </div>
-                                                            <div>
-                                                                <span className="text-gray-500 block text-xs mb-1">Chẩn đoán hình ảnh</span> 
-                                                                <p className="font-semibold text-gray-900 whitespace-pre-wrap">{parsedNotes.paraclinical?.imaging || "—"}</p>
-                                                            </div>
-                                                            <div>
-                                                                <span className="text-gray-500 block text-xs mb-1">Nội soi</span> 
-                                                                <p className="font-semibold text-gray-900 whitespace-pre-wrap">{parsedNotes.paraclinical?.endoscopy || "—"}</p>
-                                                            </div>
-                                                        </div>
+                                                        )}
                                                     </div>
 
                                                     {/* VI. Tổng kết bệnh */}
