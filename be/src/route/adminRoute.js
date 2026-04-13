@@ -12,5 +12,6 @@ router.get("/users", adminController.getAllUsers);
 router.post("/users/create-staff", adminController.createStaffAccount);
 router.patch("/users/:id/role", adminController.updateUserRole);
 router.patch("/users/:id/ban", adminController.toggleBanUser);
+router.get("/users/:id/ban-history", adminController.getUserBanHistory);
 
 module.exports = router;

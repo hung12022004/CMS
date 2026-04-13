@@ -4,6 +4,8 @@ const express = require("express");
 const morgan = require("morgan");
 const cors = require("cors");
 const path = require("path");
+const http = require("http");
+const socketConfig = require("./socket");
 
 const connectDB = require("./config/db");
 // ... (giữ nguyên các phần import routes)
@@ -16,23 +18,25 @@ const reviewRoute = require("./route/reviewRoute");
 const queueRoute = require("./route/queueRoute");
 const scheduleRoute = require("./route/scheduleRoute");
 const paymentRoute = require("./route/paymentRoute");
+const encounterRoute = require("./route/encounterRoute");
+const serviceRequestRoute = require("./route/serviceRequestRoute");
+const reportRoute = require("./route/reportRoute");
+const { initCronJobs } = require("./services/cronService");
 
 const app = express();
 
 app.use(morgan("dev"));
 
-// ✅ Cập nhật CORS để cho phép Vercel truy cập
+// CORS: Cho phép tất cả request từ local (LAN + localhost)
 app.use(
   cors({
-    origin: ["http://localhost:5173"], // Link Vite ở máy bạn
+    origin: true, // Chấp nhận mọi origin (localhost, 192.168.x.x, v.v.)
     credentials: true,
   })
 );
 
 app.use(express.json());
 
-// ✅ Cấu hình lại đường dẫn Static files cho đúng trên Server
-// Nếu file server.js nằm trong src/, và folder uploads nằm cùng cấp với src/
 app.use("/uploads", express.static(path.join(__dirname, "../uploads")));
 
 // --- Routes ---
@@ -45,13 +49,19 @@ app.use("/api/v1/reviews", reviewRoute);
 app.use("/api/v1/queue", queueRoute);
 app.use("/api/v1/schedules", scheduleRoute);
 app.use("/api/v1/payments", paymentRoute);
+app.use("/api/v1/encounters", encounterRoute);
+app.use("/api/v1/services", serviceRequestRoute);
+app.use("/api/v1/reports", reportRoute);
 
 app.get("/", (req, res) => res.json({ ok: true, message: "CMS API is running" }));
 
-// Port cho Render tự cấp
-const PORT = process.env.PORT || 10000;
+const PORT = process.env.PORT || 5000;
+
+const server = http.createServer(app);
+socketConfig.init(server);
 
 (async () => {
   await connectDB();
-  app.listen(PORT, () => console.log(`✅ Server is live on port ${PORT}`));
+  initCronJobs(); // Kích hoạt Cronjob báo cáo
+  server.listen(PORT, () => console.log(`✅ Server is live on port ${PORT}`));
 })();

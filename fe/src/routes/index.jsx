@@ -19,6 +19,9 @@ import BookingPage from "../pages/BookingPage";
 import CheckoutPage from "../pages/CheckoutPage";
 import AppointmentsPage from "../pages/AppointmentsPage";
 import MedicalRecordsPage from "../pages/MedicalRecordsPage";
+import ReportsPage from "../pages/ReportsPage";
+import EncounterFlowPage from "../pages/EncounterFlowPage";
+import EncounterBoardPage from "../pages/EncounterBoardPage";
 
 // Admin Pages
 import AdminUsersPage from "../pages/AdminUsersPage";
@@ -43,10 +46,10 @@ export default function AppRoutes() {
         <Route path="/reset-password" element={<ResetPassword />} />
         <Route path="/verify-otp" element={<VerifyOtpPage />} />
         <Route path="/unauthorized" element={<UnauthorizedPage />} />
-        {/* Walk-in check-in — no login required */}
+        {/* Walk-in check-in - no login required */}
         <Route path="/checkin" element={<CheckInPage />} />
 
-        {/* Protected: Tất cả user đã đăng nhập */}
+        {/* Protected: logged in users */}
         <Route element={<ProtectedRoute allowedRoles={[]} />}>
           <Route path="/profile" element={<ProfilePage />} />
           <Route path="/change-password" element={<ChangePasswordPage />} />
@@ -67,12 +70,45 @@ export default function AppRoutes() {
         <Route
           element={
             <ProtectedRoute
-              allowedRoles={["patient", "doctor", "nurse"]}
+              allowedRoles={["patient", "doctor", "nurse", "CLINICAL_DOCTOR", "PARACLINICAL_DOCTOR", "admin"]}
             />
           }
         >
           <Route path="/appointments" element={<AppointmentsPage />} />
           <Route path="/medical-records" element={<MedicalRecordsPage />} />
+        </Route>
+
+        {/* Patient Progress: realtime tracking (reuses EncounterFlowPage with socket) */}
+        <Route
+          element={
+            <ProtectedRoute
+              allowedRoles={["patient"]}
+            />
+          }
+        >
+          <Route path="/progress" element={<EncounterFlowPage />} />
+        </Route>
+
+        {/* Encounter flow: patient view */}
+        <Route
+          element={
+            <ProtectedRoute
+              allowedRoles={["patient", "doctor", "CLINICAL_DOCTOR", "PARACLINICAL_DOCTOR", "admin"]}
+            />
+          }
+        >
+          <Route path="/encounters/flow" element={<EncounterFlowPage />} />
+        </Route>
+
+        {/* Encounter queue: doctor view */}
+        <Route
+          element={
+            <ProtectedRoute
+              allowedRoles={["doctor", "CLINICAL_DOCTOR", "PARACLINICAL_DOCTOR", "admin"]}
+            />
+          }
+        >
+          <Route path="/encounters/board" element={<EncounterBoardPage />} />
         </Route>
 
         {/* Nurse only */}
@@ -86,11 +122,16 @@ export default function AppRoutes() {
           <Route path="/doctor/queue" element={<DoctorQueuePage />} />
         </Route>
 
-        {/* Dashboard: tất cả role đã đăng nhập */}
+        {/* Report: doctor + admin */}
+        <Route element={<ProtectedRoute allowedRoles={["doctor", "admin"]} />}>
+          <Route path="/reports" element={<ReportsPage />} />
+        </Route>
+
+        {/* Dashboard: all logged-in roles */}
         <Route
           element={
             <ProtectedRoute
-              allowedRoles={["patient", "doctor", "nurse", "admin"]}
+              allowedRoles={["patient", "doctor", "nurse", "CLINICAL_DOCTOR", "PARACLINICAL_DOCTOR", "admin"]}
             />
           }
         >

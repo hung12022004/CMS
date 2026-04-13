@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback } from "react";
 import { getDoctorsApi } from "../services/user.api";
 import { getSchedulesApi, upsertScheduleApi, deleteScheduleApi } from "../services/schedule.api";
+import ImportSchedule from "../components/admin/ImportSchedule";
+import { socket } from "../services/socketClient";
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 function getNextWeekRange() {
@@ -156,6 +158,7 @@ export default function NurseSchedulePage() {
     const [loading, setLoading] = useState(true);
     const [weekMode, setWeekMode] = useState("next"); // "this" | "next"
     const [editSlot, setEditSlot] = useState(null);
+    const [showImport, setShowImport] = useState(false);
 
     const weekDates = weekMode === "next" ? getNextWeekRange() : getThisWeekRange();
     const startDate = weekDates[0];
@@ -178,6 +181,17 @@ export default function NurseSchedulePage() {
     }, [startDate, endDate]);
 
     useEffect(() => { fetchAll(); }, [fetchAll]);
+
+    // Realtime: reload when another nurse/admin does a bulk import
+    useEffect(() => {
+        if (!socket) return;
+        const handler = () => {
+            console.log("[Socket] schedule:bulkImported → reload");
+            fetchAll();
+        };
+        socket.on("schedule:bulkImported", handler);
+        return () => { socket.off("schedule:bulkImported", handler); };
+    }, [fetchAll]);
 
     // Build a lookup: scheduleMap[doctorId][date] = schedule object
     const scheduleMap = {};
@@ -258,6 +272,13 @@ export default function NurseSchedulePage() {
                                 </button>
                             ))}
                         </div>
+                        {/* Import Excel button */}
+                        <button
+                            onClick={() => setShowImport(true)}
+                            className="px-4 py-2 text-sm font-semibold bg-blue-600 hover:bg-blue-700 text-white border border-blue-600 rounded-xl flex items-center gap-1.5 transition shadow-sm"
+                        >
+                            📥 Nhập từ Excel
+                        </button>
                         <button
                             onClick={fetchAll}
                             className="px-4 py-2 text-sm bg-white border border-gray-200 rounded-xl text-gray-600 hover:bg-teal-50 hover:border-teal-300 hover:text-teal-600 transition shadow-sm"
@@ -420,6 +441,17 @@ export default function NurseSchedulePage() {
                     onClose={() => setEditSlot(null)}
                     onSaved={handleSaved}
                     onDelete={editSlot._scheduleId ? () => handleDelete(editSlot._scheduleId) : null}
+                />
+            )}
+
+            {/* Import Excel Modal */}
+            {showImport && (
+                <ImportSchedule
+                    onClose={() => setShowImport(false)}
+                    onImported={() => {
+                        setShowImport(false);
+                        fetchAll();
+                    }}
                 />
             )}
         </div>

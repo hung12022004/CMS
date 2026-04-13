@@ -21,4 +21,8 @@ router.get("/doctors", userController.getDoctors);
 router.get("/doctors/:id", userController.getDoctorById);
 router.get("/doctors/:id/reviews", userController.getDoctorReviews);
 
+// Quan trọng: Chỉ admin được quyền Ban/Unban user
+// authorizer có thể là 'admin' hoặc 'ADMIN' tùy thuộc vào Auth setup.
+router.post("/:id/ban", auth, authorize("admin", "ADMIN"), userController.toggleBanUser);
+
 module.exports = router;

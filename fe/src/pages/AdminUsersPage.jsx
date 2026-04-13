@@ -1,11 +1,14 @@
 import { useState, useEffect } from "react";
-import { getAllUsersApi, updateUserRoleApi, createStaffAccountApi, toggleBanUserApi } from "../services/admin.api";
+import { getAllUsersApi, updateUserRoleApi, createStaffAccountApi } from "../services/admin.api";
+import BanUserModal from "../components/admin/BanUserModal";
+import BanHistoryModal from "../components/admin/BanHistoryModal";
 
 const ROLE_LABELS = {
     admin: { label: "Admin", color: "bg-red-500/20 text-red-400" },
     doctor: { label: "Bác sĩ", color: "bg-blue-500/20 text-blue-400" },
     nurse: { label: "Y tá", color: "bg-green-500/20 text-green-400" },
     patient: { label: "Bệnh nhân", color: "bg-slate-500/20 text-slate-400" },
+    PARACLINICAL_DOCTOR: { label: "Bác sĩ cận lâm sàng", color: "bg-cyan-500/20 text-cyan-400" },
 };
 
 export default function AdminUsersPage() {
@@ -15,7 +18,14 @@ export default function AdminUsersPage() {
     const [page, setPage] = useState(1);
     const [loading, setLoading] = useState(true);
     const [updating, setUpdating] = useState(null);
-    const [banning, setBanning] = useState(null);
+
+    // Ban User Modal state
+    const [selectedUserForBan, setSelectedUserForBan] = useState(null);
+    const [isBanModalOpen, setIsBanModalOpen] = useState(false);
+
+    // History Modal state
+    const [selectedUserForHistory, setSelectedUserForHistory] = useState(null);
+    const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
 
     // Create staff modal state
     const [showCreateModal, setShowCreateModal] = useState(false);
@@ -68,20 +78,18 @@ export default function AdminUsersPage() {
         }
     };
 
-    const handleToggleBan = async (userId) => {
-        setBanning(userId);
-        try {
-            const data = await toggleBanUserApi(userId);
-            setUsers((prev) =>
-                prev.map((u) =>
-                    u._id === userId ? { ...u, isBanned: data.user.isBanned } : u
-                )
-            );
-        } catch (err) {
-            alert(err.response?.data?.message || "Lỗi khi ban/unban");
-        } finally {
-            setBanning(null);
-        }
+    const openBanModal = (user) => {
+        setSelectedUserForBan(user);
+        setIsBanModalOpen(true);
+    };
+
+    const handleBanSuccess = () => {
+        fetchUsers(); // Refresh list after ban/unban logic occurs
+    };
+
+    const openHistoryModal = (user) => {
+        setSelectedUserForHistory(user);
+        setIsHistoryModalOpen(true);
     };
 
     const handleCreateStaff = async (e) => {
@@ -192,7 +200,7 @@ export default function AdminUsersPage() {
                                     users.map((u) => (
                                         <tr
                                             key={u._id}
-                                            className={`border-b border-slate-800/50 hover:bg-slate-800/30 transition-colors ${u.isBanned ? "opacity-60" : ""}`}
+                                            className={`border-b border-slate-800/50 hover:bg-slate-800/30 transition-colors ${u.accountStatus === "BANNED" ? "opacity-60" : ""}`}
                                         >
                                             <td className="px-6 py-4">
                                                 <div className="flex items-center gap-3">
@@ -203,7 +211,7 @@ export default function AdminUsersPage() {
                                                         <span className="text-white font-medium">
                                                             {u.name || "—"}
                                                         </span>
-                                                        {u.isBanned && (
+                                                        {u.accountStatus === "BANNED" && (
                                                             <span className="ml-2 px-2 py-0.5 bg-red-500/20 text-red-400 text-[10px] font-bold rounded-full">
                                                                 BỊ KHÓA
                                                             </span>
@@ -224,14 +232,14 @@ export default function AdminUsersPage() {
                                             </td>
                                             <td className="px-6 py-4">
                                                 <span
-                                                    className={`px-3 py-1 rounded-full text-xs font-semibold ${u.isBanned
+                                                    className={`px-3 py-1 rounded-full text-xs font-semibold ${u.accountStatus === "BANNED"
                                                         ? "bg-red-500/20 text-red-400"
                                                         : u.isVerified
                                                             ? "bg-emerald-500/20 text-emerald-400"
                                                             : "bg-amber-500/20 text-amber-400"
                                                         }`}
                                                 >
-                                                    {u.isBanned ? "Bị khóa" : u.isVerified ? "Đã xác thực" : "Chưa xác thực"}
+                                                    {u.accountStatus === "BANNED" ? "Bị khóa" : u.isVerified ? "Đã xác thực" : "Chưa xác thực"}
                                                 </span>
                                             </td>
                                             <td className="px-6 py-4 text-slate-400 text-sm">
@@ -249,19 +257,27 @@ export default function AdminUsersPage() {
                                                     >
                                                         <option value="patient">Bệnh nhân</option>
                                                         <option value="doctor">Bác sĩ</option>
+                                                        <option value="PARACLINICAL_DOCTOR">Bác sĩ cận lâm sàng</option>
                                                         <option value="nurse">Y tá</option>
                                                         <option value="admin">Admin</option>
                                                     </select>
                                                     <button
-                                                        onClick={() => handleToggleBan(u._id)}
-                                                        disabled={banning === u._id || u.role === "admin"}
-                                                        className={`px-3 py-2 rounded-lg text-xs font-semibold transition-colors disabled:opacity-40 ${u.isBanned
+                                                        onClick={() => openBanModal(u)}
+                                                        disabled={u.role === "admin"}
+                                                        className={`px-3 py-2 rounded-lg text-xs font-semibold transition-colors disabled:opacity-40 ${u.accountStatus === "BANNED"
                                                                 ? "bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30"
                                                                 : "bg-red-500/20 text-red-400 hover:bg-red-500/30"
                                                             }`}
-                                                        title={u.isBanned ? "Mở khóa tài khoản" : "Khóa tài khoản"}
+                                                        title={u.accountStatus === "BANNED" ? "Mở khóa tài khoản" : "Khóa tài khoản"}
                                                     >
-                                                        {banning === u._id ? "..." : u.isBanned ? "Unban" : "Ban"}
+                                                        {u.accountStatus === "BANNED" ? "Unban" : "Ban"}
+                                                    </button>
+                                                    <button
+                                                        onClick={() => openHistoryModal(u)}
+                                                        className="px-3 py-2 rounded-lg text-xs font-semibold bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 transition-colors"
+                                                        title="Xem lịch sử Ban/Unban"
+                                                    >
+                                                        Lịch sử
                                                     </button>
                                                 </div>
                                             </td>
@@ -335,6 +351,16 @@ export default function AdminUsersPage() {
                                     </button>
                                     <button
                                         type="button"
+                                        onClick={() => setCreateForm(f => ({ ...f, role: "PARACLINICAL_DOCTOR" }))}
+                                        className={`flex-1 py-3 rounded-xl font-medium transition-all ${createForm.role === "PARACLINICAL_DOCTOR"
+                                                ? "bg-cyan-600 text-white shadow-lg"
+                                                : "bg-slate-800 text-slate-400 hover:bg-slate-700"
+                                            }`}
+                                    >
+                                        Bác sĩ cận lâm sàng
+                                    </button>
+                                    <button
+                                        type="button"
                                         onClick={() => setCreateForm(f => ({ ...f, role: "nurse" }))}
                                         className={`flex-1 py-3 rounded-xl font-medium transition-all ${createForm.role === "nurse"
                                                 ? "bg-green-600 text-white shadow-lg"
@@ -400,7 +426,7 @@ export default function AdminUsersPage() {
                             </div>
 
                             {/* Specialty - Only for Doctors */}
-                            {createForm.role === "doctor" && (
+                            {(createForm.role === "doctor" || createForm.role === "PARACLINICAL_DOCTOR") && (
                                 <div className="mb-4 animate-fade-in">
                                     <label className="text-sm font-medium text-slate-300 mb-1 block">Chuyên khoa</label>
                                     <select
@@ -447,6 +473,21 @@ export default function AdminUsersPage() {
                     </div>
                 </div>
             )}
+
+            {/* Ban Modal */}
+            <BanUserModal 
+                user={selectedUserForBan}
+                isOpen={isBanModalOpen}
+                onClose={() => setIsBanModalOpen(false)}
+                onSuccess={handleBanSuccess}
+            />
+
+            {/* History Modal */}
+            <BanHistoryModal 
+                user={selectedUserForHistory}
+                isOpen={isHistoryModalOpen}
+                onClose={() => setIsHistoryModalOpen(false)}
+            />
         </div>
     );
 }

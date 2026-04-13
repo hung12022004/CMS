@@ -36,7 +36,7 @@ const doctorScheduleSchema = new mongoose.Schema(
     { timestamps: true }
 );
 
-// Unique per doctor per date
-doctorScheduleSchema.index({ doctorId: 1, date: 1 }, { unique: true });
+// Removed index to allow multiple shift schedules on the same day for time-overlap logic
+// doctorScheduleSchema.index({ doctorId: 1, date: 1 }, { unique: true });
 
 module.exports = mongoose.model("DoctorSchedule", doctorScheduleSchema);
